@@ -37,6 +37,7 @@ import {
 } from "@/lib/parsers";
 import { z } from "zod";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 
 interface TasksTableProps {
   promises: Promise<
@@ -194,7 +195,8 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
             }
           />
         ) : (
-          <DataTableFilter
+          <DataTableToolbar
+            table={table}
             config={filterConfig}
             onFilterChange={(newFilters, newJoinOperator) => {
               setFilters(newFilters as Filter<Task>[]);
