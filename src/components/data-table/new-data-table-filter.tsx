@@ -67,13 +67,6 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
             return (
               <div key={filter.id} className="flex items-center gap-2">
                 {filterComponent}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeFilter(filter.id)}
-                >
-                  Remove
-                </Button>
               </div>
             );
           })}
