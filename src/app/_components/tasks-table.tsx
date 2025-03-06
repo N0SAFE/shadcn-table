@@ -2,7 +2,6 @@
 
 import { type Task, tasks } from "@/db/schema";
 import type {
-  DataTableAdvancedFilterField,
   DataTableFilterField,
   DataTableRowAction,
   ExtendedSortingState,
@@ -12,9 +11,9 @@ import * as React from "react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableAdvancedToolbar } from "@/components/data-table/data-table-advanced-toolbar";
-import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { useDataTable } from "@/hooks/use-data-table";
 import { toSentenceCase } from "@/lib/utils";
+import { DataTableFilter } from "@/components/data-table/new-data-table-filter";
 
 import type {
   getTaskPriorityCounts,
@@ -35,7 +34,9 @@ import {
   getSortingStateParser,
 } from "@/lib/parsers";
 import { z } from "zod";
-import { getCoreRowModel, Updater, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { createDataTableFilters } from "@/lib/create-filters";
+import { directusFilterAdapter } from "@/lib/directus-filter-adapter";
 
 interface TasksTableProps {
   promises: Promise<
@@ -59,89 +60,89 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
 
   const columns = React.useMemo(() => getColumns({ setRowAction }), []);
 
-  /**
-   * This component can render either a faceted filter or a search filter based on the `options` prop.
-   *
-   * @prop options - An array of objects, each representing a filter option. If provided, a faceted filter is rendered. If not, a search filter is rendered.
-   *
-   * Each `option` object has the following properties:
-   * @prop {string} label - The label for the filter option.
-   * @prop {string} value - The value for the filter option.
-   * @prop {React.ReactNode} [icon] - An optional icon to display next to the label.
-   * @prop {boolean} [withCount] - An optional boolean to display the count of the filter option.
-   */
-  const filterFields: DataTableFilterField<Task>[] = [
-    {
-      id: "title",
-      label: "Title",
-      placeholder: "Filter titles...",
-    },
-    {
-      id: "status",
-      label: "Status",
-      options: tasks.status.enumValues.map((status) => ({
-        label: toSentenceCase(status),
-        value: status,
-        icon: getStatusIcon(status),
-        count: statusCounts[status],
-      })),
-    },
-    {
-      id: "priority",
-      label: "Priority",
-      options: tasks.priority.enumValues.map((priority) => ({
-        label: toSentenceCase(priority),
-        value: priority,
-        icon: getPriorityIcon(priority),
-        count: priorityCounts[priority],
-      })),
-    },
-  ];
+  // // Create filter configs for the new filter system
+  // const filterConfig = React.useMemo(
+  //   () => [
+  //     {
+  //       id: "title",
+  //       type: "text",
+  //       meta: {
+  //         placeholder: "Filter titles...",
+  //       },
+  //     },
+  //     {
+  //       id: "status",
+  //       type: "multi-select",
+  //       meta: {
+  //         options: tasks.status.enumValues.map((status) => ({
+  //           label: toSentenceCase(status),
+  //           value: status,
+  //         })),
+  //         placeholder: "Filter by status...",
+  //       },
+  //     },
+  //     {
+  //       id: "priority",
+  //       type: "multi-select",
+  //       meta: {
+  //         options: tasks.priority.enumValues.map((priority) => ({
+  //           label: toSentenceCase(priority),
+  //           value: priority,
+  //         })),
+  //         placeholder: "Filter by priority...",
+  //       },
+  //     },
+  //     {
+  //       id: "createdAt",
+  //       type: "date",
+  //       meta: {
+  //         placeholder: "Filter by date...",
+  //       },
+  //     },
+  //   ],
+  //   []
+  // );
 
-  /**
-   * Advanced filter fields for the data table.
-   * These fields provide more complex filtering options compared to the regular filterFields.
-   *
-   * Key differences from regular filterFields:
-   * 1. More field types: Includes 'text', 'multi-select', 'date', and 'boolean'.
-   * 2. Enhanced flexibility: Allows for more precise and varied filtering options.
-   * 3. Used with DataTableAdvancedToolbar: Enables a more sophisticated filtering UI.
-   * 4. Date and boolean types: Adds support for filtering by date ranges and boolean values.
-   */
-  const advancedFilterFields: DataTableAdvancedFilterField<Task>[] = [
-    {
-      id: "title",
-      label: "Title",
-      type: "text",
-    },
-    {
-      id: "status",
-      label: "Status",
-      type: "multi-select",
-      options: tasks.status.enumValues.map((status) => ({
-        label: toSentenceCase(status),
-        value: status,
-        icon: getStatusIcon(status),
-        count: statusCounts[status],
-      })),
-    },
-    {
-      id: "priority",
-      label: "Priority",
-      type: "multi-select",
-      options: tasks.priority.enumValues.map((priority) => ({
-        label: toSentenceCase(priority),
-        value: priority,
-        icon: getPriorityIcon(priority),
-        count: priorityCounts[priority],
-      })),
-    },
-    {
-      id: "createdAt",
-      label: "Created at",
-      type: "date",
-    },
-  ];
+  // // Add filterFields back for non-advanced mode
+  // const filterFields: DataTableFilterField<Task>[] = [
+  //   {
+  //     id: "title",
+  //     label: "Title",
+  //     type: "text",
+  //     placeholder: "Filter titles...",
+  //   },
+  //   {
+  //     id: "status",
+  //     label: "Status",
+  //     type: "multi-select",
+  //     options: tasks.status.enumValues.map((status) => ({
+  //       label: toSentenceCase(status),
+  //       value: status,
+  //       icon: getStatusIcon(status),
+  //       count: statusCounts[status],
+  //     })),
+  //   },
+  //   {
+  //     id: "priority",
+  //     label: "Priority",
+  //     type: "multi-select",
+  //     options: tasks.priority.enumValues.map((priority) => ({
+  //       label: toSentenceCase(priority),
+  //       value: priority,
+  //       icon: getPriorityIcon(priority),
+  //       count: priorityCounts[priority],
+  //     })),
+  //   },
+  //   {
+  //     id: "createdAt",
+  //     label: "Created at",
+  //     type: "date",
+  //   },
+  // ];
+
+  const filterConfig = createDataTableFilters(directusFilterAdapter, [
+    { id: "test", type: "text", label: "Test" },
+  ]);
 
   const enableAdvancedTable = featureFlags.includes("advancedTable");
   const enableFloatingBar = featureFlags.includes("floatingBar");
@@ -172,13 +173,19 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
       })
   );
 
+  // Transform filters to proper column filters for the table
+  const columnFilters = React.useMemo(() => {
+    return filters.map((filter) => ({
+      id: filter.id,
+      value: filter,
+    }));
+  }, [filters]);
+
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     pageCount,
-    // filterFields,
-    // enableAdvancedFilter: enableAdvancedTable,
     initialState: {
       columnPinning: { right: ["actions"] },
     },
@@ -188,14 +195,12 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
         joinOperator,
         filters,
       },
+      columnFilters,
     },
     getRowId: (originalRow) => originalRow.id,
-    // shallow: false,
-    // clearOnDefault: true,
     onGlobalFilterChange: (
       value: z.infer<typeof arrayFiltersSchemaWithJoin>
     ) => {
-      console.log("onGlobalFilterChange", value);
       setFilters(value.filters as Filter<(typeof data)[number]>[]);
       setJoinOperator(value.joinOperator);
     },
@@ -205,6 +210,24 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
         setSorting(newSortingState as ExtendedSortingState<(typeof data)[0]>);
       } else {
         setSorting(updater as ExtendedSortingState<(typeof data)[0]>);
+      }
+    },
+    onColumnFiltersChange: (updater) => {
+      if (typeof updater === "function") {
+        // Extract the actual filter objects without nesting
+        const currentFilters = table
+          .getState()
+          .columnFilters.map((cf) => cf.value as Filter<Task>);
+        const newColumnFilters = updater(table.getState().columnFilters);
+        // Extract just the filter values from the new column filters
+        const newFilters = newColumnFilters.map(
+          (cf) => cf.value as Filter<Task>
+        );
+        setFilters(newFilters);
+      } else {
+        // Extract just the filter values from the direct update
+        const newFilters = updater.map((cf) => cf.value as Filter<Task>);
+        setFilters(newFilters);
       }
     },
   });
@@ -218,17 +241,21 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
         }
       >
         {enableAdvancedTable ? (
+          <DataTableFilter
+            config={filterConfig}
+            onFilterChange={(newFilters, newJoinOperator) => {
+              setFilters(newFilters as Filter<Task>[]);
+              setJoinOperator(newJoinOperator);
+            }}
+          />
+        ) : (
           <DataTableAdvancedToolbar
             table={table}
-            filterFields={advancedFilterFields}
             shallow={false}
+            config={filterConfig}
           >
             <TasksTableToolbarActions table={table} />
           </DataTableAdvancedToolbar>
-        ) : (
-          <DataTableToolbar table={table} filterFields={filterFields}>
-            <TasksTableToolbarActions table={table} />
-          </DataTableToolbar>
         )}
       </DataTable>
       <UpdateTaskSheet

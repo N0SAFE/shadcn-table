@@ -1,6 +1,5 @@
-import type { ColumnType, Filter, FilterOperator } from "@/types";
+import type { ColumnType, Filter, FilterOperator, OperatorType } from "@/types";
 import type { Column } from "@tanstack/react-table";
-
 import { dataTableConfig } from "@/config/data-table";
 
 /**
@@ -32,7 +31,6 @@ export function getCommonPinningStyles<TData>({
     isPinned === "left" && column.getIsLastColumn("left");
   const isFirstRightPinnedColumn =
     isPinned === "right" && column.getIsFirstColumn("right");
-
   return {
     boxShadow: withBorder
       ? isLastLeftPinnedColumn
@@ -55,8 +53,7 @@ export function getCommonPinningStyles<TData>({
  * Determine the default filter operator for a given column type.
  *
  * This function returns the most appropriate default filter operator based on the
- * column's data type. For text columns, it returns 'iLike' (case-insensitive like),
- * while for all other types, it returns 'eq' (equality).
+ * column's data type using the standardized configuration.
  *
  * @param columnType - The type of the column (e.g., 'text', 'number', 'date', etc.).
  * @returns The default FilterOperator for the given column type.
@@ -64,37 +61,48 @@ export function getCommonPinningStyles<TData>({
 export function getDefaultFilterOperator(
   columnType: ColumnType,
 ): FilterOperator {
-  if (columnType === "text") {
-    return "iLike";
-  }
-
-  return "eq";
+  return dataTableConfig.filterConfig[columnType]?.defaultOperator as FilterOperator || "eq";
 }
 
 /**
  * Retrieve the list of applicable filter operators for a given column type.
  *
  * This function returns an array of filter operators that are relevant and applicable
- * to the specified column type. It uses a predefined mapping of column types to
- * operator lists, falling back to text operators if an unknown column type is provided.
+ * to the specified column type from the standardized configuration.
  *
  * @param columnType - The type of the column for which to get filter operators.
  * @returns An array of objects, each containing a label and value for a filter operator.
  */
 export function getFilterOperators(columnType: ColumnType) {
-  const operatorMap: Record<
-    ColumnType,
-    { label: string; value: FilterOperator }[]
-  > = {
+  const operatorConfig = dataTableConfig.filterConfig[columnType]?.operators || [];
+  
+  const operatorMap: Record<ColumnType, { label: string; value: FilterOperator }[]> = {
     text: dataTableConfig.textOperators,
     number: dataTableConfig.numericOperators,
     select: dataTableConfig.selectOperators,
-    "multi-select": dataTableConfig.selectOperators,
+    "multi-select": dataTableConfig.multiSelectOperators || dataTableConfig.selectOperators,
     boolean: dataTableConfig.booleanOperators,
     date: dataTableConfig.dateOperators,
   };
+  
+  // If we have the operators in the config, filter the operatorMap by those
+  if (operatorConfig.length > 0) {
+    return operatorMap[columnType]?.filter(op => 
+      operatorConfig.includes(op.value as OperatorType)
+    ) || dataTableConfig.textOperators;
+  }
+  
+  return operatorMap[columnType] || dataTableConfig.textOperators;
+}
 
-  return operatorMap[columnType] ?? dataTableConfig.textOperators;
+/**
+ * Get the component type to use for rendering a filter input based on column type
+ * 
+ * @param columnType - The type of the column
+ * @returns The component name to use for rendering
+ */
+export function getFilterComponent(columnType: ColumnType): string {
+  return dataTableConfig.filterConfig[columnType]?.component || "text-input";
 }
 
 /**

@@ -1,6 +1,9 @@
 import { Pickaxe, SquareSquare } from "lucide-react";
 
 export type DataTableConfig = typeof dataTableConfig;
+export type OperatorType = typeof dataTableConfig.globalOperators[number];
+export type ColumnType = typeof dataTableConfig.columnTypes[number];
+export type FilterComponentName = keyof typeof dataTableConfig.filterComponents;
 
 export const dataTableConfig = {
   featureFlags: [
@@ -55,6 +58,13 @@ export const dataTableConfig = {
     { label: "Is empty", value: "isEmpty" as const },
     { label: "Is not empty", value: "isNotEmpty" as const },
   ],
+  multiSelectOperators: [
+    { label: "Contains all", value: "containsAll" as const },
+    { label: "Contains any", value: "containsAny" as const },
+    { label: "Does not contain", value: "notContains" as const },
+    { label: "Is empty", value: "isEmpty" as const },
+    { label: "Is not empty", value: "isNotEmpty" as const },
+  ],
   booleanOperators: [
     { label: "Is", value: "eq" as const },
     { label: "Is not", value: "ne" as const },
@@ -88,7 +98,66 @@ export const dataTableConfig = {
     "gte",
     "isBetween",
     "isRelativeToToday",
+    "containsAll",
+    "containsAny",
+    "notContains",
     "and",
     "or",
   ] as const,
+  
+  // Filter components registry - maps component names to import paths
+  filterComponents: {
+    "text-input": "@/components/data-table/filter-components/text-input",
+    "number-input": "@/components/data-table/filter-components/number-input",
+    "date-picker": "@/components/data-table/filter-components/date-picker",
+    "boolean-select": "@/components/data-table/filter-components/boolean-select",
+    "select-input": "@/components/data-table/filter-components/select-input",
+    "multi-select-input": "@/components/data-table/filter-components/multi-select-input",
+  } as const,
+  
+  // Unified filter configuration for both default and advanced filters
+  filterConfig: {
+    text: {
+      type: "text",
+      defaultOperator: "iLike",
+      operators: ["iLike", "notILike", "eq", "ne", "isEmpty", "isNotEmpty"],
+      component: "text-input",
+      advancedOnly: false,
+    },
+    number: {
+      type: "number",
+      defaultOperator: "eq",
+      operators: ["eq", "ne", "lt", "lte", "gt", "gte", "isEmpty", "isNotEmpty"],
+      component: "number-input",
+      advancedOnly: false,
+    },
+    date: {
+      type: "date",
+      defaultOperator: "eq",
+      operators: ["eq", "ne", "lt", "gt", "lte", "gte", "isBetween", "isRelativeToToday", "isEmpty", "isNotEmpty"],
+      component: "date-picker",
+      advancedOnly: true,
+    },
+    boolean: {
+      type: "boolean",
+      defaultOperator: "eq",
+      operators: ["eq", "ne"],
+      component: "boolean-select",
+      advancedOnly: true,
+    },
+    select: {
+      type: "select",
+      defaultOperator: "eq",
+      operators: ["eq", "ne", "isEmpty", "isNotEmpty"],
+      component: "select-input",
+      advancedOnly: false,
+    },
+    "multi-select": {
+      type: "multi-select",
+      defaultOperator: "containsAny",
+      operators: ["containsAll", "containsAny", "notContains", "isEmpty", "isNotEmpty"],
+      component: "multi-select-input",
+      advancedOnly: false,
+    },
+  } as const,
 };

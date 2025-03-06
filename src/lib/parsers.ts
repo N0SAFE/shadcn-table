@@ -71,8 +71,11 @@ export const getFiltersStateParser = <T>(originalRow?: Row<T>["original"]) => {
   return createParser<Filter<T>[]>({
     parse: (value) => {
       try {
+        console.log(value)
         const parsed = JSON.parse(value);
         const result = z.array(filterSchema).safeParse(parsed);
+
+        console.log(result)
 
         if (!result.success) return null;
 
