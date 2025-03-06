@@ -9,17 +9,17 @@ import { DataTableFilterList } from "@/components/data-table/data-table-filter-l
 import { DataTableSortList } from "@/components/data-table/data-table-sort-list"
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options"
 
-interface DataTableAdvancedToolbarProps<TData>
+interface DataTableAdvancedToolbarProps<TData, TAdapter extends FilterAdapter>
   extends React.HTMLAttributes<HTMLDivElement> {
   table: Table<TData>;
   debounceMs?: number;
   shallow?: boolean;
-  config: FiltersInstance<FilterAdapter>;
+  config: FiltersInstance<TAdapter>;
   onFiltersChange?: (filters: Filter<TData>[]) => void;
   onJoinOperatorChange?: (operator: JoinOperator) => void;
 }
 
-export function DataTableAdvancedToolbar<TData>({
+export function DataTableAdvancedToolbar<TData, TAdapter extends FilterAdapter>({
   table,
   debounceMs = 300,
   shallow = false,
@@ -28,7 +28,7 @@ export function DataTableAdvancedToolbar<TData>({
   onJoinOperatorChange,
   className,
   ...props
-}: DataTableAdvancedToolbarProps<TData>) {
+}: DataTableAdvancedToolbarProps<TData, TAdapter>) {
   return (
     <div className={cn("flex items-center justify-between", className)} {...props}>
       <div className="flex flex-wrap items-center gap-2">

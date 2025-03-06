@@ -67,26 +67,26 @@ type LocalFilter = {
   rowId: string;
 };
 
-interface DataTableFilterListProps<TData> {
+interface DataTableFilterListProps<TData, TAdapter extends FilterAdapter> {
   table: Table<TData>;
   debounceMs: number;
   shallow?: boolean;
   /** The filter instance configuration */
-  config: FiltersInstance<FilterAdapter>;
+  config: FiltersInstance<TAdapter>;
   /** Callback when filters change */
   onFiltersChange?: (filters: Filter<TData>[]) => void;
   /** Callback when join operator changes */
   onJoinOperatorChange?: (operator: JoinOperator) => void;
 }
 
-export function DataTableFilterList<TData>({
+export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
   table,
   debounceMs,
   shallow,
   config,
   onFiltersChange,
   onJoinOperatorChange,
-}: DataTableFilterListProps<TData>) {
+}: DataTableFilterListProps<TData, TAdapter>) {
   const id = React.useId();
   
   // Transform config filters to include rowId and proper types

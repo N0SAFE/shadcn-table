@@ -27,6 +27,8 @@ import { getColumns } from "./tasks-table-columns";
 import { TasksTableFloatingBar } from "./tasks-table-floating-bar";
 import { TasksTableToolbarActions } from "./tasks-table-toolbar-actions";
 import { UpdateTaskSheet } from "./update-task-sheet";
+import { createDataTableFilters } from "@/lib/create-filters";
+import { directusFilterAdapter } from "@/lib/directus-filter-adapter";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import {
   arrayFiltersSchemaWithJoin,
@@ -35,8 +37,6 @@ import {
 } from "@/lib/parsers";
 import { z } from "zod";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { createDataTableFilters } from "@/lib/create-filters";
-import { directusFilterAdapter } from "@/lib/directus-filter-adapter";
 
 interface TasksTableProps {
   promises: Promise<
@@ -60,88 +60,31 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
 
   const columns = React.useMemo(() => getColumns({ setRowAction }), []);
 
-  // // Create filter configs for the new filter system
-  // const filterConfig = React.useMemo(
-  //   () => [
-  //     {
-  //       id: "title",
-  //       type: "text",
-  //       meta: {
-  //         placeholder: "Filter titles...",
-  //       },
-  //     },
-  //     {
-  //       id: "status",
-  //       type: "multi-select",
-  //       meta: {
-  //         options: tasks.status.enumValues.map((status) => ({
-  //           label: toSentenceCase(status),
-  //           value: status,
-  //         })),
-  //         placeholder: "Filter by status...",
-  //       },
-  //     },
-  //     {
-  //       id: "priority",
-  //       type: "multi-select",
-  //       meta: {
-  //         options: tasks.priority.enumValues.map((priority) => ({
-  //           label: toSentenceCase(priority),
-  //           value: priority,
-  //         })),
-  //         placeholder: "Filter by priority...",
-  //       },
-  //     },
-  //     {
-  //       id: "createdAt",
-  //       type: "date",
-  //       meta: {
-  //         placeholder: "Filter by date...",
-  //       },
-  //     },
-  //   ],
-  //   []
-  // );
-
-  // // Add filterFields back for non-advanced mode
-  // const filterFields: DataTableFilterField<Task>[] = [
-  //   {
-  //     id: "title",
-  //     label: "Title",
-  //     type: "text",
-  //     placeholder: "Filter titles...",
-  //   },
-  //   {
-  //     id: "status",
-  //     label: "Status",
-  //     type: "multi-select",
-  //     options: tasks.status.enumValues.map((status) => ({
-  //       label: toSentenceCase(status),
-  //       value: status,
-  //       icon: getStatusIcon(status),
-  //       count: statusCounts[status],
-  //     })),
-  //   },
-  //   {
-  //     id: "priority",
-  //     label: "Priority",
-  //     type: "multi-select",
-  //     options: tasks.priority.enumValues.map((priority) => ({
-  //       label: toSentenceCase(priority),
-  //       value: priority,
-  //       icon: getPriorityIcon(priority),
-  //       count: priorityCounts[priority],
-  //     })),
-  //   },
-  //   {
-  //     id: "createdAt",
-  //     label: "Created at",
-  //     type: "date",
-  //   },
-  // ];
-
   const filterConfig = createDataTableFilters(directusFilterAdapter, [
-    { id: "test", type: "text", label: "Test" },
+    { id: "title", type: "text", label: "Title" },
+    {
+      id: "status",
+      type: "select",
+      label: "Status",
+      meta: {
+        options: tasks.status.enumValues.map((status) => ({
+          label: toSentenceCase(status),
+          value: status,
+        })),
+      },
+    },
+    {
+      id: "priority",
+      type: "select",
+      label: "Priority",
+      meta: {
+        options: tasks.priority.enumValues.map((priority) => ({
+          label: toSentenceCase(priority),
+          value: priority,
+        })),
+      },
+    },
+    { id: "createdAt", type: "date", label: "Created at" },
   ]);
 
   const enableAdvancedTable = featureFlags.includes("advancedTable");
@@ -241,6 +184,16 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
         }
       >
         {enableAdvancedTable ? (
+          <DataTableAdvancedToolbar
+            table={table}
+            shallow={false}
+            config={filterConfig}
+            onFiltersChange={(newFilters) => setFilters(newFilters)}
+            onJoinOperatorChange={(newJoinOperator) =>
+              setJoinOperator(newJoinOperator)
+            }
+          />
+        ) : (
           <DataTableFilter
             config={filterConfig}
             onFilterChange={(newFilters, newJoinOperator) => {
@@ -248,25 +201,25 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
               setJoinOperator(newJoinOperator);
             }}
           />
-        ) : (
-          <DataTableAdvancedToolbar
-            table={table}
-            shallow={false}
-            config={filterConfig}
-          >
-            <TasksTableToolbarActions table={table} />
-          </DataTableAdvancedToolbar>
         )}
       </DataTable>
       <UpdateTaskSheet
         open={rowAction?.type === "update"}
-        onOpenChange={() => setRowAction(null)}
+        onOpenChange={(open) =>
+          setRowAction((current) =>
+            open && current?.type === "update" ? current : null
+          )
+        }
         task={rowAction?.row.original ?? null}
       />
       <DeleteTasksDialog
         open={rowAction?.type === "delete"}
-        onOpenChange={() => setRowAction(null)}
-        tasks={rowAction?.row.original ? [rowAction?.row.original] : []}
+        onOpenChange={(open) =>
+          setRowAction((current) =>
+            open && current?.type === "delete" ? current : null
+          )
+        }
+        tasks={rowAction?.row.original ? [rowAction.row.original] : []}
         showTrigger={false}
         onSuccess={() => rowAction?.row.toggleSelected(false)}
       />

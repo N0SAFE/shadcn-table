@@ -1,7 +1,6 @@
 import * as React from "react";
 import { type Filter, type FilterConfig, type FilterAdapter, FiltersInstance } from "@/lib/create-filters";
 import { useFilters } from "@/hooks/use-filters";
-import { directusFilterAdapter } from "@/lib/directus-filter-adapter";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import {
@@ -13,7 +12,7 @@ import {
 } from "@/components/ui/select";
 
 export interface DataTableFilterProps<TAdapter extends FilterAdapter> {
-  config: FiltersInstance<FilterAdapter>;
+  config: FiltersInstance<TAdapter>;
   onFilterChange?: (filters: Filter<TAdapter>[], joinOperator: 'and' | 'or') => void;
   className?: string;
 }
@@ -31,7 +30,7 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
     setJoinOperator,
     clearFilters,
     getFilterComponent
-  } = useFilters({
+  } = useFilters<TAdapter>({
     config,
     onChange: onFilterChange
   });
@@ -40,24 +39,6 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
     <div className={className}>
       {/* Filter controls */}
       <div className="flex items-center gap-2">
-        {/* <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => {
-            const firstConfig = config[0];
-            if (firstConfig) {
-              addFilter({
-                id: firstConfig.id,
-                type: firstConfig.type,
-                value: "",
-                meta: firstConfig.meta
-              });
-            }
-          }}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Filter
-        </Button> */}
         {filters.length > 0 && (
           <>
             <Select value={joinOperator} onValueChange={(value: 'and' | 'or') => setJoinOperator(value)}>
