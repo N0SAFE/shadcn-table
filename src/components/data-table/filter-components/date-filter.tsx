@@ -1,5 +1,4 @@
 import * as React from "react";
-import type { BaseFilterProps } from "@/lib/create-filters";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -10,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { BaseFilterProps } from "@/config/data-table";
 
 export interface DateFilterProps extends BaseFilterProps<Date | null> {
   meta?: {

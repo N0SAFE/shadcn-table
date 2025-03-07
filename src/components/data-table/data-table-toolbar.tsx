@@ -1,6 +1,5 @@
 "use client";
 
-import type { JoinOperator } from "@/types";
 import type { Table } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import * as React from "react";
@@ -9,40 +8,34 @@ import { DataTableViewOptions } from "@/components/data-table/data-table-view-op
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { FilterAdapter, FiltersInstance, type Filter } from "@/lib/create-filters";
 import { useFilters } from "@/hooks/use-filters";
+import { Filter, FilterAdapter, FiltersInstance } from "@/config/data-table";
 
 interface DataTableToolbarProps<TData, TAdapter extends FilterAdapter> extends React.HTMLAttributes<HTMLDivElement> {
   table: Table<TData>;
-  config: FiltersInstance<TAdapter>;
+  instance: FiltersInstance<TAdapter>;
   onFilterChange?: (filters: Filter<TAdapter>[], joinOperator: 'and' | 'or') => void;
   children?: React.ReactNode;
 }
 
 export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
   table,
-  config,
+  instance,
   onFilterChange,
   children,
   className,
   ...props
 }: DataTableToolbarProps<TData, TAdapter>) {
   const {
-    filters,
-    joinOperator,
+    state: { filters, joinOperator },
+    actions: {
     addFilter,
     removeFilter,
     setJoinOperator,
     clearFilters,
-    getFilterComponent
-  } = useFilters<TAdapter>({
-    config,
-    onChange: (newFilters, newJoinOperator) => {
-      if (onFilterChange) {
-        onFilterChange(newFilters as Filter<TAdapter>[], newJoinOperator);
-      }
+    updateFilter
     }
-  });
+  } = instance
 
   const isFiltered = filters.length > 0;
 
@@ -56,7 +49,20 @@ export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
     >
       <div className="flex flex-1 items-center gap-2">
         {filters.map((filter) => {
-          const filterComponent = getFilterComponent(filter.id);
+          const filterComponent = instance.config.adapter.getComponent(filter.type, {
+            label: 'ytery',
+            value: filter.state.value,
+            onChange: (value) => {
+              updateFilter(filter.id, {
+                state: {
+                  ...filter.state,
+                  value
+                }
+              });
+            },
+            operator: filter.state.operator,
+          });
+          
           if (!filterComponent) return null;
 
           return (

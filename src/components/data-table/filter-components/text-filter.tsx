@@ -1,6 +1,6 @@
 import * as React from "react";
-import type { BaseFilterProps } from "@/lib/create-filters";
 import { Input } from "@/components/ui/input";
+import { BaseFilterProps } from "@/config/data-table";
 
 export interface TextFilterProps extends BaseFilterProps<string> {
   meta?: {

@@ -1,163 +1,139 @@
-import { Pickaxe, SquareSquare } from "lucide-react";
+import { ReactNode } from "react";
 
-export type DataTableConfig = typeof dataTableConfig;
-export type OperatorType = typeof dataTableConfig.globalOperators[number];
-export type ColumnType = typeof dataTableConfig.columnTypes[number];
-export type FilterComponentName = keyof typeof dataTableConfig.filterComponents;
-
-export const dataTableConfig = {
-  featureFlags: [
-    {
-      label: "Advanced table",
-      value: "advancedTable" as const,
-      icon: Pickaxe,
-      tooltipTitle: "Toggle advanced table",
-      tooltipDescription: "A filter and sort builder to filter and sort rows.",
-    },
-    {
-      label: "Floating bar",
-      value: "floatingBar" as const,
-      icon: SquareSquare,
-      tooltipTitle: "Toggle floating bar",
-      tooltipDescription: "A floating bar that sticks to the top of the table.",
-    },
-  ],
-  textOperators: [
-    { label: "Contains", value: "iLike" as const },
-    { label: "Does not contain", value: "notILike" as const },
-    { label: "Is", value: "eq" as const },
-    { label: "Is not", value: "ne" as const },
-    { label: "Is empty", value: "isEmpty" as const },
-    { label: "Is not empty", value: "isNotEmpty" as const },
-  ],
-  numericOperators: [
-    { label: "Is", value: "eq" as const },
-    { label: "Is not", value: "ne" as const },
-    { label: "Is less than", value: "lt" as const },
-    { label: "Is less than or equal to", value: "lte" as const },
-    { label: "Is greater than", value: "gt" as const },
-    { label: "Is greater than or equal to", value: "gte" as const },
-    { label: "Is empty", value: "isEmpty" as const },
-    { label: "Is not empty", value: "isNotEmpty" as const },
-  ],
-  dateOperators: [
-    { label: "Is", value: "eq" as const },
-    { label: "Is not", value: "ne" as const },
-    { label: "Is before", value: "lt" as const },
-    { label: "Is after", value: "gt" as const },
-    { label: "Is on or before", value: "lte" as const },
-    { label: "Is on or after", value: "gte" as const },
-    { label: "Is between", value: "isBetween" as const },
-    { label: "Is relative to today", value: "isRelativeToToday" as const },
-    { label: "Is empty", value: "isEmpty" as const },
-    { label: "Is not empty", value: "isNotEmpty" as const },
-  ],
-  selectOperators: [
-    { label: "Is", value: "eq" as const },
-    { label: "Is not", value: "ne" as const },
-    { label: "Is empty", value: "isEmpty" as const },
-    { label: "Is not empty", value: "isNotEmpty" as const },
-  ],
-  multiSelectOperators: [
-    { label: "Contains all", value: "containsAll" as const },
-    { label: "Contains any", value: "containsAny" as const },
-    { label: "Does not contain", value: "notContains" as const },
-    { label: "Is empty", value: "isEmpty" as const },
-    { label: "Is not empty", value: "isNotEmpty" as const },
-  ],
-  booleanOperators: [
-    { label: "Is", value: "eq" as const },
-    { label: "Is not", value: "ne" as const },
-  ],
-  joinOperators: [
-    { label: "And", value: "and" as const },
-    { label: "Or", value: "or" as const },
-  ],
-  sortOrders: [
-    { label: "Asc", value: "asc" as const },
-    { label: "Desc", value: "desc" as const },
-  ],
-  columnTypes: [
-    "text",
-    "number",
-    "date",
-    "boolean",
-    "select",
-    "multi-select",
-  ] as const,
-  globalOperators: [
-    "iLike",
-    "notILike",
-    "eq",
-    "ne",
-    "isEmpty",
-    "isNotEmpty",
-    "lt",
-    "lte",
-    "gt",
-    "gte",
-    "isBetween",
-    "isRelativeToToday",
-    "containsAll",
-    "containsAny",
-    "notContains",
-    "and",
-    "or",
-  ] as const,
-  
-  // Filter components registry - maps component names to import paths
-  filterComponents: {
-    "text-input": "@/components/data-table/filter-components/text-input",
-    "number-input": "@/components/data-table/filter-components/number-input",
-    "date-picker": "@/components/data-table/filter-components/date-picker",
-    "boolean-select": "@/components/data-table/filter-components/boolean-select",
-    "select-input": "@/components/data-table/filter-components/select-input",
-    "multi-select-input": "@/components/data-table/filter-components/multi-select-input",
-  } as const,
-  
-  // Unified filter configuration for both default and advanced filters
-  filterConfig: {
-    text: {
-      type: "text",
-      defaultOperator: "iLike",
-      operators: ["iLike", "notILike", "eq", "ne", "isEmpty", "isNotEmpty"],
-      component: "text-input",
-      advancedOnly: false,
-    },
-    number: {
-      type: "number",
-      defaultOperator: "eq",
-      operators: ["eq", "ne", "lt", "lte", "gt", "gte", "isEmpty", "isNotEmpty"],
-      component: "number-input",
-      advancedOnly: false,
-    },
-    date: {
-      type: "date",
-      defaultOperator: "eq",
-      operators: ["eq", "ne", "lt", "gt", "lte", "gte", "isBetween", "isRelativeToToday", "isEmpty", "isNotEmpty"],
-      component: "date-picker",
-      advancedOnly: true,
-    },
-    boolean: {
-      type: "boolean",
-      defaultOperator: "eq",
-      operators: ["eq", "ne"],
-      component: "boolean-select",
-      advancedOnly: true,
-    },
-    select: {
-      type: "select",
-      defaultOperator: "eq",
-      operators: ["eq", "ne", "isEmpty", "isNotEmpty"],
-      component: "select-input",
-      advancedOnly: false,
-    },
-    "multi-select": {
-      type: "multi-select",
-      defaultOperator: "containsAny",
-      operators: ["containsAll", "containsAny", "notContains", "isEmpty", "isNotEmpty"],
-      component: "multi-select-input",
-      advancedOnly: false,
-    },
-  } as const,
+// Base types
+export type FilterOperatorDef = {
+    value: string;
+    label: string;
 };
+
+export type FilterValue = string | string[] | number | boolean | Date;
+
+export interface BaseFilterProps<
+    T = any,
+    Meta = {
+        [key: string]: unknown;
+    }
+> {
+    label: string;
+    value: T;
+    onChange: (value: T) => void;
+    operator: string;
+    meta?: Meta;
+}
+
+// Filter type definition with generic value type
+export interface FilterTypeDef<
+    T = any,
+    Meta = {
+        [key: string]: unknown;
+    }
+> {
+    operators: FilterOperatorDef[];
+    defaultOperator: string;
+    defaultValue?: T;
+    render: (props: BaseFilterProps<T, Meta>) => ReactNode;
+}
+
+export interface FilterTypeDefFactory {
+    operators: FilterOperatorDef[];
+    defaultOperator: string;
+    render: (props: BaseFilterProps<any>) => ReactNode;
+}
+
+export type FilterAdapterFactory = {
+    value: Record<string, FilterTypeDefFactory>;
+    getDefaultOperator: (type: string) => string;
+    getDefaultValue: (type: string) => FilterValue;
+    getComponent: (type: string) => ReactNode;
+    validateFilterValue: (type: string, value: FilterValue) => boolean;
+};
+
+// Filter adapter type with generic mapping
+export type FilterAdapter<
+    Data = any,
+    Meta = any,
+    T = {
+        [key: string]: FilterTypeDef<Data, Meta>;
+    }
+> = {
+    value: T;
+    getDefaultOperator: (type: keyof T) => string;
+    getDefaultValue: (type: keyof T) => FilterValue;
+    getComponent: (type: keyof T & string, props: BaseFilterProps<any>) => ReactNode;
+};
+
+// Make config type-safe based on adapter keys
+export interface FilterConfig<
+    T extends FilterAdapter,
+    Meta extends {
+        [key: string]: unknown;
+    } = {
+        [key: string]: unknown;
+    }
+> {
+    id: string;
+    type: keyof T["value"] extends string ? keyof T["value"] : never;
+    label: string;
+    meta?: Meta;
+    isActive?: boolean;
+    getDefaultValue?: () => FilterValue;
+}
+
+export type FiltersConfig<
+    T extends FilterAdapter = FilterAdapter,
+    Meta extends {
+        [key: string]: unknown;
+    } = {
+        [key: string]: unknown;
+    }
+> = {
+    filters: {
+        value: FilterConfig<T, Meta>[];
+        defaultJoinOperator: "and" | "or";
+        getDefaultActiveFiltersId: () => Filter<T>["id"][];
+    };
+    adapter: T;
+};
+
+export type FiltersState<
+    T extends FilterAdapter = FilterAdapter,
+> = {
+    filters: Filter<T>[];
+    joinOperator: "and" | "or";
+};
+
+export type FiltersActions<
+    T extends FilterAdapter = FilterAdapter,
+> = {
+    addFilter: (filter: Filter<T>) => void;
+    updateFilter: (id: string, updates: Partial<Omit<Filter<T>, "id" | "type">>) => void;
+    removeFilter: (id: string) => void;
+    setJoinOperator: (operator: "and" | "or") => void;
+    clearFilters: () => void;
+    setFilters: (filters: Filter<T>[]) => void;
+    generateFilter: (filter: Partial<Omit<FilterConfig<T>, "type">> & Pick<FilterConfig<T>, "type">) => Filter<T>;
+};
+
+// Filter instance type that includes runtime state
+export interface Filter<T extends FilterAdapter> {
+    label: string;
+    id: string;
+    type: keyof T["value"] extends string ? keyof T["value"] : never;
+    state: {
+        value: FilterValue;
+        operator: string;
+        isActive: boolean;
+    };
+}
+
+// Make FiltersInstance generic based on adapter type
+export interface FiltersInstance<T extends FilterAdapter = FilterAdapter> {
+    state: FiltersState<T>;
+    config: FiltersConfig<T>;
+    actions: FiltersActions<T>;
+    _version: number;
+    // callbacks: {
+    //   onFilterChange: (cb: (filters: Filter<T>[], joinOperator: "and" | "or") => void) => void;
+    //   onJoinOperatorChange: (cb: (operator: "and" | "or") => void) => void;
+    // };
+}

@@ -1,5 +1,4 @@
 import * as React from "react";
-import type { BaseFilterProps } from "@/lib/create-filters";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -17,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BaseFilterProps } from "@/config/data-table";
 
 export interface MultiSelectFilterProps extends BaseFilterProps<string[]> {
   meta?: {

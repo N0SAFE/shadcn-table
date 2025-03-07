@@ -9,10 +9,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { type DataTableConfig, dataTableConfig } from "@/config/data-table";
 import { cn } from "@/lib/utils";
+import { featureFlagsConfig } from "@/lib/features-flag";
 
-type FeatureFlagValue = DataTableConfig["featureFlags"][number]["value"];
+type FeatureFlagValue = typeof featureFlagsConfig[number]["value"];
 
 interface FeatureFlagsContextProps {
   featureFlags: FeatureFlagValue[];
@@ -68,7 +68,7 @@ export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
           onValueChange={(value: FeatureFlagValue[]) => setFeatureFlags(value)}
           className="w-fit gap-0"
         >
-          {dataTableConfig.featureFlags.map((flag, index) => (
+          {featureFlagsConfig.map((flag, index) => (
             <Tooltip key={flag.value}>
               <ToggleGroupItem
                 value={flag.value}
@@ -77,7 +77,7 @@ export function FeatureFlagsProvider({ children }: FeatureFlagsProviderProps) {
                   {
                     "rounded-l-sm border-r-0": index === 0,
                     "rounded-r-sm":
-                      index === dataTableConfig.featureFlags.length - 1,
+                      index === featureFlagsConfig.length - 1,
                   },
                 )}
                 asChild

@@ -1,9 +1,7 @@
-import type { ExtendedSortingState, Filter } from "@/types";
 import type { Row } from "@tanstack/react-table";
 import { createParser } from "nuqs/server";
 import { z } from "zod";
-
-import { dataTableConfig } from "@/config/data-table";
+import { Filter, FilterAdapter, FiltersInstance } from '../config/data-table';
 
 export const sortingItemSchema = z.object({
   id: z.string(),
@@ -47,16 +45,27 @@ export const getSortingStateParser = <TData>(
   });
 };
 
-export const filterSchema = z.object({
+export const createFilterSchema = (filtersInstance: FiltersInstance) => z.object({
   id: z.string(),
   value: z.union([z.string(), z.array(z.string())]),
-  type: z.enum(dataTableConfig.columnTypes),
-  operator: z.enum(dataTableConfig.globalOperators),
+  type: z.string(). refine((val) => {
+    const filterConfig = filtersInstance.config.filters.value.find((filter) => filter.id === val);
+    return !!filterConfig;
+  }, {
+    message: "Invalid filter type."
+  }),
+  operator: z.string().refine((val) => {
+    const filterConfig = filtersInstance.config.filters.value.find((filter) => filter.id === val);
+    return !!filterConfig;
+  }
+  , {
+    message: "Invalid filter operator."
+  }),
   rowId: z.string(),
 });
 
-export const arrayFiltersSchemaWithJoin = z.object({
-  filters: z.array(filterSchema),
+export const createArrayFiltersSchemaWithJoin = (filtersInstance: FiltersInstance) => z.object({
+  filters: z.array(createFilterSchema(filtersInstance)),
   joinOperator: z.enum(["and", "or"]),
 });
 
@@ -65,23 +74,25 @@ export const arrayFiltersSchemaWithJoin = z.object({
  * @param originalRow The original row data to create the parser for.
  * @returns A parser for data table filters state.
  */
-export const getFiltersStateParser = <T>(originalRow?: Row<T>["original"]) => {
-  const validKeys = originalRow ? new Set(Object.keys(originalRow)) : null;
+export const getFiltersStateParser = <T extends FilterAdapter>(
+  filtersInstance: FiltersInstance
+) => {
+  // const validKeys = originalRow ? new Set(Object.keys(originalRow)) : null;
 
   return createParser<Filter<T>[]>({
     parse: (value) => {
       try {
         console.log(value)
         const parsed = JSON.parse(value);
-        const result = z.array(filterSchema).safeParse(parsed);
+        const result = z.array(createFilterSchema(filtersInstance)).safeParse(parsed);
 
         console.log(result)
 
         if (!result.success) return null;
 
-        if (validKeys && result.data.some((item) => !validKeys.has(item.id))) {
-          return null;
-        }
+        // if (validKeys && result.data.some((item) => !validKeys.has(item.id))) {
+        //   return null;
+        // }
 
         return result.data as Filter<T>[];
       } catch {

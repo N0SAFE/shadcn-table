@@ -9,9 +9,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { type DataTableConfig, dataTableConfig } from "@/config/data-table";
+import { featureFlagsConfig } from '@/lib/features-flag';
 
-type FeatureFlagValue = DataTableConfig["featureFlags"][number]["value"];
+type FeatureFlagValue = typeof featureFlagsConfig[number]["value"];
 
 interface TasksTableContextProps {
   featureFlags: FeatureFlagValue[];
@@ -48,7 +48,7 @@ export function TasksTableProvider({ children }: React.PropsWithChildren) {
     <TasksTableContext.Provider
       value={{
         featureFlags,
-        setFeatureFlags: (value) => void setFeatureFlags(value),
+        setFeatureFlags,
       }}
     >
       <div className="w-full overflow-x-auto">
@@ -60,7 +60,7 @@ export function TasksTableProvider({ children }: React.PropsWithChildren) {
           onValueChange={(value: FeatureFlagValue[]) => setFeatureFlags(value)}
           className="w-fit"
         >
-          {dataTableConfig.featureFlags.map((flag) => (
+          {featureFlagsConfig.map((flag) => (
             <Tooltip key={flag.value}>
               <ToggleGroupItem
                 value={flag.value}

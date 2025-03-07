@@ -3,18 +3,18 @@
 import * as React from "react"
 import type { Filter, JoinOperator } from "@/types"
 import { type Table } from "@tanstack/react-table"
-import type { FilterAdapter, FiltersInstance } from "@/lib/create-filters"
 import { cn } from "@/lib/utils"
-import { DataTableFilterList } from "@/components/data-table/data-table-filter-list"
 import { DataTableSortList } from "@/components/data-table/data-table-sort-list"
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options"
+import { DataTableFilter } from "./new-data-table-filter"
+import { FilterAdapter, FiltersConfig, FiltersInstance } from "@/config/data-table"
 
 interface DataTableAdvancedToolbarProps<TData, TAdapter extends FilterAdapter>
   extends React.HTMLAttributes<HTMLDivElement> {
   table: Table<TData>;
   debounceMs?: number;
   shallow?: boolean;
-  config: FiltersInstance<TAdapter>;
+  instance: FiltersInstance<TAdapter>;
   onFiltersChange?: (filters: Filter<TData>[]) => void;
   onJoinOperatorChange?: (operator: JoinOperator) => void;
 }
@@ -23,7 +23,7 @@ export function DataTableAdvancedToolbar<TData, TAdapter extends FilterAdapter>(
   table,
   debounceMs = 300,
   shallow = false,
-  config,
+  instance,
   onFiltersChange,
   onJoinOperatorChange,
   className,
@@ -32,14 +32,21 @@ export function DataTableAdvancedToolbar<TData, TAdapter extends FilterAdapter>(
   return (
     <div className={cn("flex items-center justify-between", className)} {...props}>
       <div className="flex flex-wrap items-center gap-2">
-        <DataTableFilterList
+        <DataTableFilter
+          instance={instance} 
+          onFilterChange={(filters, joinOperator) => {
+            if (onFiltersChange) onFiltersChange(filters as Filter<TData>[]);
+            if (onJoinOperatorChange) onJoinOperatorChange(joinOperator);
+          }}
+        />
+        {/* <DataTableSortList 
           table={table}
           debounceMs={debounceMs}
           shallow={shallow}
-          config={config}
-          onFiltersChange={onFiltersChange}
-          onJoinOperatorChange={onJoinOperatorChange}
-        />
+        /> */}
+      </div>
+      <div className="flex items-center">
+        <DataTableViewOptions table={table} />
       </div>
     </div>
   );

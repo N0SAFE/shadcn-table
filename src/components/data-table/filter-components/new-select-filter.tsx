@@ -1,5 +1,4 @@
 import * as React from "react";
-import type { BaseFilterProps } from "@/lib/create-filters";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -8,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BaseFilterProps } from "@/config/data-table";
 
 export interface SelectFilterProps extends BaseFilterProps<string> {
   meta?: {

@@ -1,6 +1,7 @@
 import type { ColumnType, Filter, FilterOperator, OperatorType } from "@/types";
 import type { Column } from "@tanstack/react-table";
 import { dataTableConfig } from "@/config/data-table";
+import { FilterAdapter, FilterConfig, FiltersInstance } from "./create-filters";
 
 /**
  * Generate common pinning styles for a table column.
@@ -58,10 +59,11 @@ export function getCommonPinningStyles<TData>({
  * @param columnType - The type of the column (e.g., 'text', 'number', 'date', etc.).
  * @returns The default FilterOperator for the given column type.
  */
-export function getDefaultFilterOperator(
+export function getDefaultFilterOperator<T extends FilterAdapter>(
+  config: FiltersInstance<T>,
   columnType: ColumnType,
-): FilterOperator {
-  return dataTableConfig.filterConfig[columnType]?.defaultOperator as FilterOperator || "eq";
+): string {
+  return config.adapterConfig[columnType]?.defaultOperator || config.adapterConfig[columnType]?.operators[0]?.value;
 }
 
 /**

@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "clean": "rimraf --glob **/node_modules **/dist **/.next pnpm-lock.yaml **/.tsbuildinfo",
+    "clean": "rimraf --glob **/node_modules **/dist **/.next package-lock.json **/.tsbuildinfo",
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm lint && pnpm typecheck",
-    "shadcn": "pnpm dlx shadcn@latest",
+    "check": "npm run lint && npm run typecheck",
+    "shadcn": "npm run dlx shadcn@latest",
     "db:generate": "dotenv drizzle-kit generate",
     "db:introspect": "dotenv drizzle-kit introspect",
     "db:push": "dotenv drizzle-kit push",
@@ -86,6 +86,5 @@
   },
   "ct3aMetadata": {
     "initVersion": "7.23.1"
-  },
-  "packageManager": "pnpm@9.15.4"
+  }
 }
