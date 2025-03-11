@@ -6,9 +6,7 @@ import * as React from "react";
 
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useFilters } from "@/hooks/use-filters";
 import { Filter, FilterAdapter, FiltersInstance } from "@/config/data-table";
 
 interface DataTableToolbarProps<TData, TAdapter extends FilterAdapter> extends React.HTMLAttributes<HTMLDivElement> {
@@ -29,13 +27,10 @@ export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
   const {
     state: { filters, joinOperator },
     actions: {
-    addFilter,
-    removeFilter,
-    setJoinOperator,
-    clearFilters,
-    updateFilter
+      clearFilters,
+      updateFilter
     }
-  } = instance
+  } = instance;
 
   const isFiltered = filters.length > 0;
 
@@ -50,7 +45,7 @@ export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
       <div className="flex flex-1 items-center gap-2">
         {filters.map((filter) => {
           const filterComponent = instance.config.adapter.getComponent(filter.type, {
-            label: 'ytery',
+            label: filter.label,
             value: filter.state.value,
             onChange: (value) => {
               updateFilter(filter.id, {
@@ -76,7 +71,7 @@ export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
             aria-label="Reset filters"
             variant="ghost"
             className="h-8 px-2 lg:px-3"
-            onClick={clearFilters}
+            onClick={() => clearFilters()}
           >
             Reset
             <X className="ml-2 size-4" aria-hidden="true" />

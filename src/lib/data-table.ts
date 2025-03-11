@@ -53,17 +53,37 @@ export function getCommonPinningStyles<TData>({
 /**
  * Determine the default filter operator for a given column type.
  *
- * This function returns the most appropriate default filter operator based on the
- * column's data type using the standardized configuration.
+ * This function can be called in two ways:
+ * 1. With a string column type to use global dataTableConfig
+ * 2. With a FiltersInstance and column type to use instance-specific adapter
  *
- * @param columnType - The type of the column (e.g., 'text', 'number', 'date', etc.).
+ * @param columnTypeOrConfig - Either the column type as string or a FiltersInstance
+ * @param columnType - The column type (required when first param is FiltersInstance)
  * @returns The default FilterOperator for the given column type.
  */
-export function getDefaultFilterOperator<T extends FilterAdapter>(
-  config: FiltersInstance<T>,
-  columnType: ColumnType,
+export function getDefaultFilterOperator<T extends FilterAdapter = FilterAdapter>(
+  columnTypeOrConfig: string | FiltersInstance<T>,
+  columnTypeParam?: string
 ): string {
-  return config.adapterConfig[columnType]?.defaultOperator || config.adapterConfig[columnType]?.operators[0]?.value;
+  // If first parameter is a string (columnType), use the default config
+  if (typeof columnTypeOrConfig === 'string') {
+    const columnType = columnTypeOrConfig as ColumnType;
+    return dataTableConfig.filterConfig[columnType]?.defaultOperator || 
+           dataTableConfig.filterConfig[columnType]?.operators[0]?.value || 
+           "eq";
+  }
+  
+  // If first parameter is a FiltersInstance, use its adapter
+  const instance = columnTypeOrConfig;
+  const columnType = columnTypeParam as keyof T['value'] & string;
+  
+  if (!columnType) {
+    console.warn('Column type is required when passing a FiltersInstance to getDefaultFilterOperator');
+    return "eq";
+  }
+  
+  const adapter = instance.config.adapter;
+  return adapter.getDefaultOperator(columnType);
 }
 
 /**
@@ -119,17 +139,17 @@ export function getFilterComponent(columnType: ColumnType): string {
  * @param filters - An array of Filter objects to be validated.
  * @returns A new array containing only the valid filters.
  */
-export function getValidFilters<TData>(
-  filters: Filter<TData>[],
-): Filter<TData>[] {
+export function getValidFilters<TAdapter extends FilterAdapter>(
+  filters: Filter<TAdapter>[],
+): Filter<TAdapter>[] {
   return filters.filter(
     (filter) =>
-      filter.operator === "isEmpty" ||
-      filter.operator === "isNotEmpty" ||
-      (Array.isArray(filter.value)
-        ? filter.value.length > 0
-        : filter.value !== "" &&
-          filter.value !== null &&
-          filter.value !== undefined),
+      filter.state.operator === "isEmpty" ||
+      filter.state.operator === "isNotEmpty" ||
+      (Array.isArray(filter.state.value)
+        ? filter.state.value.length > 0
+        : filter.state.value !== "" &&
+          filter.state.value !== null &&
+          filter.state.value !== undefined),
   );
 }

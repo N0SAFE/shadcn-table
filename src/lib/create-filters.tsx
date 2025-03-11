@@ -1,6 +1,6 @@
-import { Filter, FilterAdapter, FilterConfig, FiltersInstance } from "@/config/data-table";
-import type { Filter } from '@/lib/create-filters';
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Filter, FilterAdapter, FilterConfig, FiltersInstance, FiltersConfig, FiltersState, FiltersActions } from "@/config/data-table";
+import { useCallback, useEffect, useState } from "react";
+import { customAlphabet } from "nanoid";
 
 export interface CreateFiltersOptions<T extends FilterAdapter> {
   onFiltersChange?: (
@@ -16,89 +16,122 @@ export function createDataTableFilters<
   T extends FilterAdapter
 >(
   adapter: T,
-  config: FilterConfig<T>[],
+  filterConfigs: FilterConfig<T>[],
   options: CreateFiltersOptions<T> = {}
 ): FiltersInstance<T> {
-  const [filters, _setFilters] = useState<Filter<T>[]>();
-  const [joinOperator, _setJoinOperator] = useState<'and' | 'or'>();
+  const [filters, _setFilters] = useState<Filter<T>[]>([]);
+  const [joinOperator, _setJoinOperator] = useState<'and' | 'or'>("and");
   
   // State to trigger re-renders when filters change
   const [version, setVersion] = useState(0);
   
+  // Create a unique ID generator
+  const nanoid = customAlphabet(
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+    6
+  );
+
+  // Function to generate a filter object from a config
+  const generateFilter = useCallback((partialConfig: Partial<Omit<FilterConfig<T>, "type">> & Pick<FilterConfig<T>, "type">) => {
+    const filterType = partialConfig.type;
+    return {
+      id: partialConfig.id || nanoid(),
+      label: partialConfig.label || String(filterType),
+      type: filterType,
+      state: {
+        operator: adapter.getDefaultOperator(filterType),
+        value: partialConfig.getDefaultValue?.() || adapter.getDefaultValue(filterType),
+        isActive: partialConfig.isActive || false
+      }
+    } as Filter<T>;
+  }, [adapter, nanoid]);
+
   // Create stable wrapper functions that trigger re-renders
   const addFilter = useCallback((filter: Filter<T>) => {
     setVersion(v => v + 1);
-    options.onFiltersChange?.(
-      filters?.concat(filter) || [filter],
-      joinOperator
-    );
-  }, [filters, joinOperator, options.onFiltersChange]);
+    const newFilters = [...filters, filter];
+    _setFilters(newFilters);
+    options.onFiltersChange?.(newFilters, joinOperator);
+  }, [filters, joinOperator, options]);
 
   const updateFilter = useCallback((id: string, updates: Partial<Omit<Filter<T>, 'id' | 'type'>>) => {
     setVersion(v => v + 1);
-    options.onFiltersChange?.(
-      filters.map(filter => filter.id === id ? { ...filter, ...updates } : filter),
-      joinOperator
+    const updatedFilters = filters.map(filter => 
+      filter.id === id 
+        ? { ...filter, ...updates } 
+        : filter
     );
-  }, [filters, joinOperator, options.onFiltersChange]);
+    _setFilters(updatedFilters);
+    options.onFiltersChange?.(updatedFilters, joinOperator);
+  }, [filters, joinOperator, options]);
 
   const removeFilter = useCallback((id: string) => {
     setVersion(v => v + 1);
-    options.onFiltersChange?.(
-      filters.filter(filter => filter.id !== id),
-      joinOperator
-    );
-  }, [filters, joinOperator, options.onFiltersChange]);
+    const filteredFilters = filters.filter(filter => filter.id !== id);
+    _setFilters(filteredFilters);
+    options.onFiltersChange?.(filteredFilters, joinOperator);
+  }, [filters, joinOperator, options]);
 
   const setJoinOperator = useCallback((operator: 'and' | 'or') => {
     setVersion(v => v + 1);
+    _setJoinOperator(operator);
+    options.onJoinOperatorChange?.(operator);
     options.onFiltersChange?.(filters, operator);
-  }, [filters, options.onFiltersChange]);
+  }, [filters, options]);
 
   const clearFilters = useCallback(() => { 
-    setVersion(v => v + 1); 
+    setVersion(v => v + 1);
+    _setFilters([]);
     options.onFiltersChange?.([], joinOperator); 
-  }, [joinOperator, options.onFiltersChange]); 
+  }, [joinOperator, options]);
+
+  const setFilters = useCallback((newFilters: Filter<T>[]) => {
+    setVersion(v => v + 1);
+    _setFilters(newFilters);
+    options.onFiltersChange?.(newFilters, joinOperator);
+  }, [joinOperator, options]);
   
+  // Initialize filters from config with active status if specified
   useEffect(() => {
     if (options.useActiveFilters) {
-      _setFilters(config.getDefaultActiveFiltersId());
+      const activeFilters = filterConfigs
+        .filter(cfg => cfg.isActive)
+        .map(cfg => generateFilter(cfg));
+      
+      if (activeFilters.length > 0) {
+        _setFilters(activeFilters);
+      }
     }
-  }, [config, useActiveFilters]);
+  }, [filterConfigs, generateFilter, options.useActiveFilters]);
 
-  const instance: FiltersInstance<T> = {
-    get filters() {
-      return filters;
+  // Create filters configuration for public access
+  const filtersConfig: FiltersConfig<T> = {
+    filters: {
+      value: filterConfigs,
+      defaultJoinOperator: "and",
+      getDefaultActiveFiltersId: () => 
+        filterConfigs
+          .filter(cfg => cfg.isActive)
+          .map(cfg => cfg.id)
     },
-    get joinOperator() {
-      return joinOperator;
-    },
-    get adapterConfig() {
-      return adapter;
-    },
-    get filtersConfig() {
-      return config.map((cfg) => ({
-        ...cfg,
-        type: cfg.type,
-        label: cfg.label,
-        isActive: filters.some((f) => f.id === cfg.id),
-      }));
-    },
-    getDefaultActiveFiltersId() {
-      return config.filter((cfg) => cfg.isActive).map((cfg) => cfg.id);
-    },
+    adapter
   };
 
-  // Initialize filters from config
-  // config.forEach((cfg) => {
-  //   instance.addFilter({
-  //     operator: adapter?.[cfg.type]?.defaultOperator,
-  //     id: cfg.id,
-  //     type: cfg.type,
-  //     value: "",
-  //     meta: cfg.meta,
-  //   });
-  // });
-
-  return instance;
+  return {
+    state: {
+      filters,
+      joinOperator
+    },
+    actions: {
+      addFilter,
+      updateFilter,
+      removeFilter,
+      setJoinOperator,
+      clearFilters,
+      setFilters,
+      generateFilter
+    },
+    config: filtersConfig,
+    _version: version
+  };
 }

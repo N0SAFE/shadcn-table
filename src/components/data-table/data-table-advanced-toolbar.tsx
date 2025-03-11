@@ -1,13 +1,12 @@
 "use client"
 
 import * as React from "react"
-import type { Filter, JoinOperator } from "@/types"
 import { type Table } from "@tanstack/react-table"
 import { cn } from "@/lib/utils"
 import { DataTableSortList } from "@/components/data-table/data-table-sort-list"
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options"
 import { DataTableFilter } from "./new-data-table-filter"
-import { FilterAdapter, FiltersConfig, FiltersInstance } from "@/config/data-table"
+import { Filter, FilterAdapter, FiltersInstance } from "@/config/data-table"
 
 interface DataTableAdvancedToolbarProps<TData, TAdapter extends FilterAdapter>
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -15,8 +14,8 @@ interface DataTableAdvancedToolbarProps<TData, TAdapter extends FilterAdapter>
   debounceMs?: number;
   shallow?: boolean;
   instance: FiltersInstance<TAdapter>;
-  onFiltersChange?: (filters: Filter<TData>[]) => void;
-  onJoinOperatorChange?: (operator: JoinOperator) => void;
+  onFiltersChange?: (filters: Filter<TAdapter>[]) => void;
+  onJoinOperatorChange?: (operator: "and" | "or") => void;
 }
 
 export function DataTableAdvancedToolbar<TData, TAdapter extends FilterAdapter>({
@@ -35,7 +34,7 @@ export function DataTableAdvancedToolbar<TData, TAdapter extends FilterAdapter>(
         <DataTableFilter
           instance={instance} 
           onFilterChange={(filters, joinOperator) => {
-            if (onFiltersChange) onFiltersChange(filters as Filter<TData>[]);
+            if (onFiltersChange) onFiltersChange(filters);
             if (onJoinOperatorChange) onJoinOperatorChange(joinOperator);
           }}
         />

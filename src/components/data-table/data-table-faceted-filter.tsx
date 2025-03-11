@@ -25,42 +25,42 @@ import { filterSchema } from "@/lib/parsers";
 import { getDefaultFilterOperator } from "@/lib/data-table";
 import { dataTableConfig } from "@/config/data-table";
 import { FilterComponent } from "./filter-components";
+import { FilterAdapter, FilterValue } from "@/config/data-table";
 
-interface DataTableFacetedFilterProps<TData, TValue> {
+interface DataTableFacetedFilterProps<TData, TValue, TAdapter extends FilterAdapter = FilterAdapter> {
   id: string;
   title?: string;
   options?: Option[];
-  type?: ColumnType;
-  operator?: FilterOperator;
+  type?: keyof TAdapter["value"] & string;
+  adapter?: TAdapter;
+  operator?: string;
   placeholder?: string;
   getSearchById: (id: string) => z.infer<typeof filterSchema> | undefined;
-  updateSearchById: (id: string, value: unknown, operator?: FilterOperator) => void;
+  updateSearchById: (id: string, value: FilterValue, operator?: string) => void;
   clearFilter?: () => void;
 }
 
-export function DataTableFacetedFilter<TData, TValue>({
+export function DataTableFacetedFilter<TData, TValue, TAdapter extends FilterAdapter = FilterAdapter>({
   id,
   title,
   options,
-  type = "select",
+  type = "select" as keyof TAdapter["value"] & string,
+  adapter,
   operator: defaultOperator,
   placeholder,
   getSearchById,
   updateSearchById,
   clearFilter,
-}: DataTableFacetedFilterProps<TData, TValue>) {
+}: DataTableFacetedFilterProps<TData, TValue, TAdapter>) {
   const filter = getSearchById(id);
   const filterValue = filter?.value;
   
   // Set default operator based on column type if not provided
-  const operator = filter?.operator || defaultOperator || getDefaultFilterOperator(type);
+  const operator = filter?.operator || defaultOperator || getDefaultFilterOperator(type as ColumnType);
   
-  // Get component type from filterConfig for this column type
-  const componentType = dataTableConfig.filterConfig[type]?.component;
-
   // For most filters, use the FilterComponent system, but for select/multi-select dropdowns,
   // maintain the original faceted filter interface to keep UI consistent
-  if (type !== "select" && type !== "multi-select" && !options?.length) {
+  if ((type !== "select" && type !== "multi-select") || !options?.length) {
     return (
       <Popover>
         <PopoverTrigger asChild>
@@ -89,7 +89,7 @@ export function DataTableFacetedFilter<TData, TValue>({
         <PopoverContent className="w-full p-0" align="start">
           <div className="space-y-2 p-2">
             <FilterComponent 
-              columnType={type}
+              columnType={type as ColumnType}
               value={filterValue || ""}
               onChange={(value) => updateSearchById(id, value)}
               placeholder={placeholder}

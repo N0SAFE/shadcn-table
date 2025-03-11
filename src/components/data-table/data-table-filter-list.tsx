@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type {
-  Filter,
+  ColumnType,
   FilterOperator,
   JoinOperator,
   StringKeyOf,
@@ -52,29 +52,29 @@ import {
   SortableContent,
 } from "@/components/ui/sortable";
 import { FilterComponent } from "./filter-components";
-import { type FilterAdapter, FiltersInstance } from "@/lib/create-filters";
+import { Filter, FilterAdapter, FiltersInstance } from "@/config/data-table";
 
 // Define operator type from the config
 type FilterOperatorType = (typeof dataTableConfig.globalOperators)[number];
 type FilterType = keyof typeof dataTableConfig.filterConfig;
 
-// Define local filter type that includes rowId
-type LocalFilter = {
+// Define local filter type that includes rowId for UI tracking
+interface LocalFilter<T extends FilterAdapter = FilterAdapter> {
   id: string;
-  value: string | string[];
-  type: FilterType;
-  operator: FilterOperatorType;
+  value: Filter<T>["state"]["value"];
+  type: keyof T["value"] & string;
+  operator: string;
   rowId: string;
-};
+}
 
 interface DataTableFilterListProps<TData, TAdapter extends FilterAdapter> {
   table: Table<TData>;
   debounceMs: number;
   shallow?: boolean;
   /** The filter instance configuration */
-  config: FiltersInstance<TAdapter>;
+  instance: FiltersInstance<TAdapter>;
   /** Callback when filters change */
-  onFiltersChange?: (filters: Filter<TData>[]) => void;
+  onFiltersChange?: (filters: Filter<TAdapter>[]) => void;
   /** Callback when join operator changes */
   onJoinOperatorChange?: (operator: JoinOperator) => void;
 }
@@ -83,96 +83,104 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
   table,
   debounceMs,
   shallow,
-  config,
+  instance,
   onFiltersChange,
   onJoinOperatorChange,
 }: DataTableFilterListProps<TData, TAdapter>) {
   const id = React.useId();
   
-  // Transform config filters to include rowId and proper types
-  const localFilters = React.useMemo((): LocalFilter[] => {
-    if (config) {
-      return config.filters.map(f => ({
-        ...f,
-        rowId: f.id,
-        type: f.type as FilterType,
-        operator: f.operator as FilterOperatorType,
-        value: f.value as string | string[]
-      }));
-    }
-    const globalFilter = arrayFiltersSchemaWithJoin.parse(
-      table.getState().globalFilter || { filters: [], joinOperator: "and" }
-    );
-    return globalFilter.filters.map(f => ({
-      ...f,
-      type: f.type as FilterType,
-      operator: f.operator as FilterOperatorType
+  // Transform instance filters to include rowId for UI tracking
+  const localFilters = React.useMemo((): LocalFilter<TAdapter>[] => {
+    return instance.state.filters.map(f => ({
+      id: f.id,
+      rowId: f.id, // Use id as rowId for simplicity
+      type: f.type,
+      operator: f.state.operator,
+      value: f.state.value
     }));
-  }, [config, table]);
+  }, [instance.state.filters]);
 
-  const [filters, setInternalFilters] = React.useState<LocalFilter[]>(localFilters);
-  const joinOperator = config ? config.joinOperator : (arrayFiltersSchemaWithJoin.parse(
-    table.getState().globalFilter || { filters: [], joinOperator: "and" }
-  ).joinOperator as 'and' | 'or');
+  const [filters, setInternalFilters] = React.useState<LocalFilter<TAdapter>[]>(localFilters);
+  const joinOperator = instance.state.joinOperator;
 
-  // Update internal filters when config changes
+  // Update internal filters when instance filters change
   React.useEffect(() => {
     setInternalFilters(localFilters);
   }, [localFilters]);
 
   // Function to update filters and joinOperator
-  const setFiltersWithOperator = (
-    filtersWithOperator:
-      | { filters: LocalFilter[]; joinOperator: 'and' | 'or' }
-      | ((prev: { filters: LocalFilter[]; joinOperator: 'and' | 'or' }) => { 
-          filters: LocalFilter[]; 
-          joinOperator: 'and' | 'or' 
-        })
-  ) => {
-    const newState = typeof filtersWithOperator === 'function' 
-      ? filtersWithOperator({ filters, joinOperator })
-      : filtersWithOperator;
-    
-    // If using config, update through its methods
-    if (config) {
+  const setFiltersWithOperator = React.useCallback(
+    (
+      filtersWithOperator:
+        | { filters: LocalFilter<TAdapter>[]; joinOperator: 'and' | 'or' }
+        | ((prev: { filters: LocalFilter<TAdapter>[]; joinOperator: 'and' | 'or' }) => { 
+            filters: LocalFilter<TAdapter>[]; 
+            joinOperator: 'and' | 'or' 
+          })
+    ) => {
+      const newState = typeof filtersWithOperator === 'function' 
+        ? filtersWithOperator({ filters, joinOperator })
+        : filtersWithOperator;
+      
+      // Update join operator if changed
+      if (newState.joinOperator !== joinOperator) {
+        instance.actions.setJoinOperator(newState.joinOperator);
+      }
+      
+      // Find filters that need to be removed
       filters.forEach(filter => {
-        config.removeFilter(filter.id);
+        const stillExists = newState.filters.some(f => f.id === filter.id);
+        if (!stillExists) {
+          instance.actions.removeFilter(filter.id);
+        }
       });
+      
+      // Update or add filters
       newState.filters.forEach(filter => {
-        config.addFilter({
-          id: filter.id,
-          type: filter.type,
-          operator: filter.operator,
-          value: filter.value
-        });
+        const existingFilter = instance.state.filters.find(f => f.id === filter.id);
+        if (existingFilter) {
+          // Update existing filter if changed
+          if (
+            existingFilter.state.operator !== filter.operator ||
+            existingFilter.state.value !== filter.value ||
+            existingFilter.type !== filter.type
+          ) {
+            instance.actions.updateFilter(filter.id, {
+              type: filter.type,
+              state: {
+                operator: filter.operator,
+                value: filter.value,
+                isActive: true
+              }
+            });
+          }
+        } else {
+          // Add new filter
+          instance.actions.addFilter({
+            id: filter.id,
+            label: String(filter.type),
+            type: filter.type,
+            state: {
+              operator: filter.operator,
+              value: filter.value,
+              isActive: true
+            }
+          });
+        }
       });
-      config.setJoinOperator(newState.joinOperator);
-      return;
-    }
-    
-    // Otherwise update through table state
-    const cleanFilters = newState.filters.map(filter => ({
-      id: filter.id as Extract<keyof TData, string>,
-      value: filter.value,
-      operator: filter.operator,
-      type: filter.type,
-      rowId: filter.rowId
-    })) as Filter<TData>[];
-    
-    table.setGlobalFilter({
-      joinOperator: newState.joinOperator,
-      filters: cleanFilters
-    });
-    
-    if (onFiltersChange) {
-      onFiltersChange(cleanFilters);
-    }
-    if (onJoinOperatorChange) {
-      onJoinOperatorChange(newState.joinOperator);
-    }
-
-    setInternalFilters(newState.filters);
-  };
+      
+      setInternalFilters(newState.filters);
+      
+      // Call callbacks if provided
+      if (onFiltersChange) {
+        onFiltersChange(instance.state.filters);
+      }
+      if (onJoinOperatorChange && newState.joinOperator !== joinOperator) {
+        onJoinOperatorChange(newState.joinOperator);
+      }
+    },
+    [filters, instance.actions, instance.state.filters, joinOperator, onFiltersChange, onJoinOperatorChange]
+  );
 
   const debouncedSetFiltersWithOperator = useDebouncedCallback(
     setFiltersWithOperator,
@@ -180,32 +188,26 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
   );
 
   function addFilter() {
-    const filterInstance = config.getFilterComponent;
-    if (!filterInstance) return;
-
-    const newFilter = {
-      id: customAlphabet(
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-        6
-      )(),
-      value: "",
-      type: "text" as FilterType, // Default to text type
-      operator: getDefaultFilterOperator("text"),
-      rowId: customAlphabet(
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-        6
-      )(),
-    };
-
-    if (config) {
-      config.addFilter(newFilter);
-      return;
-    }
-
-    void setFiltersWithOperator({
-      joinOperator,
-      filters: [...filters, newFilter],
+    const nanoid = customAlphabet(
+      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+      6
+    );
+    
+    // Get the first available filter type from the adapter
+    const availableFilterTypes = Object.keys(instance.config.adapter.value);
+    if (availableFilterTypes.length === 0) return;
+    
+    const filterType = availableFilterTypes[0] as keyof TAdapter["value"] & string;
+    const defaultOperator = instance.config.adapter.getDefaultOperator(filterType);
+    const defaultValue = instance.config.adapter.getDefaultValue(filterType);
+    
+    // Generate a new filter using the adapter's defaults
+    const newFilter = instance.actions.generateFilter({
+      type: filterType,
+      label: String(filterType).charAt(0).toUpperCase() + String(filterType).slice(1)
     });
+    
+    instance.actions.addFilter(newFilter);
   }
 
   function updateFilter({
@@ -214,66 +216,35 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
     debounced = false,
   }: {
     rowId: string;
-    field: Omit<Partial<Filter<TData>>, "rowId">;
+    field: Partial<Omit<LocalFilter<TAdapter>, "rowId">>;
     debounced?: boolean;
   }) {
-    const updateFunction = debounced
-      ? debouncedSetFiltersWithOperator
-      : setFiltersWithOperator;
-
-    if (config) {
-      const filter = filters.find(f => f.rowId === rowId);
-      if (filter) {
-        config.updateFilter(filter.id, field);
-      }
-      return;
-    }
-      
-    updateFunction(({ filters: prevFilters, joinOperator }) => {
-      const updatedFilters = prevFilters.map((filter) => {
-        if (filter.rowId === rowId) {
-          // Ensure we extract just the value from nested structures
-          let cleanValue: string | string[] = "";
-          if (field.value) {
-            if (typeof field.value === 'object' && 'value' in field.value && field.value.value) {
-              cleanValue = field.value.value as string | string[];
-            } else if (Array.isArray(field.value)) {
-              cleanValue = field.value;
-            } else if (typeof field.value === 'string') {
-              cleanValue = field.value;
-            }
-          }
-
-          return {
-            ...filter,
-            ...field,
-            value: cleanValue,
-          };
+    const filter = filters.find(f => f.rowId === rowId);
+    if (!filter) return;
+    
+    const updateFn = debounced ? debouncedSetFiltersWithOperator : setFiltersWithOperator;
+    
+    updateFn(({ filters: prevFilters, joinOperator }) => {
+      const updatedFilters = prevFilters.map(prevFilter => {
+        if (prevFilter.rowId === rowId) {
+          return { ...prevFilter, ...field };
         }
-        return filter;
+        return prevFilter;
       });
-      return { filters: updatedFilters as Filter<TData>[], joinOperator };
+      
+      return { filters: updatedFilters, joinOperator };
     });
   }
 
   function removeFilter(rowId: string) {
-    if (config) {
-      const filter = filters.find(f => f.rowId === rowId);
-      if (filter) {
-        config.removeFilter(filter.id);
-      }
-      return;
-    }
-
-    const updatedFilters = filters.filter((filter) => filter.rowId !== rowId);
-    void setFiltersWithOperator({
-      joinOperator,
-      filters: updatedFilters,
-    });
+    const filter = filters.find(f => f.rowId === rowId);
+    if (!filter) return;
+    
+    instance.actions.removeFilter(filter.id);
   }
 
   function moveFilter(activeIndex: number, overIndex: number) {
-    void setFiltersWithOperator(({ filters: prevFilters, joinOperator }) => {
+    setFiltersWithOperator(({ filters: prevFilters, joinOperator }) => {
       const newFilters = [...prevFilters];
       const [removed] = newFilters.splice(activeIndex, 1);
       if (!removed) return { filters: prevFilters, joinOperator };
@@ -337,7 +308,13 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
               const filterTypeListboxId = `${filterId}-type-listbox`;
               const filterTypeTriggerId = `${filterId}-type-trigger`;
               const operatorListboxId = `${filterId}-operator-listbox`;
-              const inputId = `${filterId}-input`;
+
+              // Get available operators from the adapter for this filter type
+              const filterTypeConfig = instance.config.adapter.value[filter.type];
+              const operators = filterTypeConfig?.operators?.map(op => ({
+                label: op.label,
+                value: op.value
+              })) || [];
 
               return (
                 <SortableContent key={filter.rowId}>
@@ -354,7 +331,7 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
                             onValueChange={(value: JoinOperator) =>
                               setFiltersWithOperator((prev) => ({
                                 ...prev,
-                                joinOperator: value,
+                                joinOperator: value as 'and' | 'or',
                               }))
                             }
                           >
@@ -370,14 +347,8 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
                               position="popper"
                               className="min-w-[var(--radix-select-trigger-width)] lowercase"
                             >
-                              {[
-                                { value: "and", label: "And" },
-                                { value: "or", label: "Or" }
-                              ].map((op) => (
-                                <SelectItem key={op.value} value={op.value}>
-                                  {op.label}
-                                </SelectItem>
-                              ))}
+                              <SelectItem value="and">And</SelectItem>
+                              <SelectItem value="or">Or</SelectItem>
                             </SelectContent>
                           </Select>
                         ) : (
@@ -418,17 +389,21 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
                             <CommandList>
                               <CommandEmpty>No types found.</CommandEmpty>
                               <CommandGroup>
-                                {Object.keys(dataTableConfig.filterConfig).map((type) => (
+                                {Object.keys(instance.config.adapter.value).map((type) => (
                                   <CommandItem
                                     key={type}
                                     value={type}
                                     onSelect={(value) => {
+                                      const newType = value as keyof TAdapter["value"] & string;
+                                      const newOperator = instance.config.adapter.getDefaultOperator(newType);
+                                      const newValue = instance.config.adapter.getDefaultValue(newType);
+                                      
                                       updateFilter({
                                         rowId: filter.rowId,
                                         field: {
-                                          type: value as FilterType,
-                                          operator: getDefaultFilterOperator(value as FilterType),
-                                          value: "",
+                                          type: newType,
+                                          operator: newOperator,
+                                          value: newValue
                                         },
                                       });
 
@@ -457,7 +432,7 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
                       </Popover>
                       <Select
                         value={filter.operator}
-                        onValueChange={(value: FilterOperator) =>
+                        onValueChange={(value: string) =>
                           updateFilter({
                             rowId: filter.rowId,
                             field: {
@@ -480,7 +455,7 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
                           </div>
                         </SelectTrigger>
                         <SelectContent id={operatorListboxId}>
-                          {getFilterOperators(filter.type).map((op) => (
+                          {operators.map((op) => (
                             <SelectItem key={op.value} value={op.value}>
                               {op.label}
                             </SelectItem>
@@ -488,17 +463,19 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
                         </SelectContent>
                       </Select>
                       <div className="min-w-36 flex-1">
-                        <FilterComponent 
-                          columnType={filter.type}
-                          value={filter.value}
-                          onChange={(value) => updateFilter({
-                            rowId: filter.rowId,
-                            field: { value },
-                            debounced: filter.type === "text"
-                          })}
-                          disabled={false}
-                          operator={filter.operator}
-                        />
+                        {filter.type && filter.operator && (
+                          React.createElement(FilterComponent, {
+                            columnType: filter.type as ColumnType,
+                            value: filter.value,
+                            onChange: (value) => updateFilter({
+                              rowId: filter.rowId,
+                              field: { value },
+                              debounced: filter.type === "text"
+                            }),
+                            disabled: false,
+                            operator: filter.operator,
+                          })
+                        )}
                       </div>
                       <Button
                         variant="outline"
@@ -542,10 +519,7 @@ export function DataTableFilterList<TData, TAdapter extends FilterAdapter>({
                 variant="outline"
                 className="rounded"
                 onClick={() => {
-                  void setFiltersWithOperator({
-                    joinOperator: "and",
-                    filters: [],
-                  });
+                  instance.actions.clearFilters();
                 }}
               >
                 Reset filters

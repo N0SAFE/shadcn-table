@@ -1,16 +1,29 @@
 import * as React from "react";
-import { useFilters } from "@/hooks/use-filters";
-import { Button } from "@/components/ui/button";
-import { ListFilter, PlusCircle, Trash2, X } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { getDefaultFilterOperator } from "@/lib/data-table";
-import { customAlphabet } from "nanoid";
-import { FilterAdapter, FiltersInstance } from "@/config/data-table";
-import { Filter } from "@/types/index";
+import { Filter, FilterAdapter, FiltersInstance } from "@/config/data-table";
+import { ListFilter, PlusCircle, Trash2 } from "lucide-react";
 
 export interface DataTableFilterProps<TAdapter extends FilterAdapter> {
     instance: FiltersInstance<TAdapter>;
@@ -18,34 +31,38 @@ export interface DataTableFilterProps<TAdapter extends FilterAdapter> {
     className?: string;
 }
 
-export function DataTableFilter<TAdapter extends FilterAdapter>({ instance, onFilterChange, className }: DataTableFilterProps<TAdapter>) {
+export function DataTableFilter<TAdapter extends FilterAdapter>({ 
+    instance, 
+    onFilterChange, 
+    className 
+}: DataTableFilterProps<TAdapter>) {
     const {
         state: { filters, joinOperator },
         actions: { addFilter, updateFilter, removeFilter, setJoinOperator, clearFilters, generateFilter },
         config: {
-            adapter: { getComponent, value: adapterTypeDef },
-            filters: { defaultJoinOperator, getDefaultActiveFiltersId, value: filtersConfig }
+            adapter,
+            filters: { value: filtersConfig }
         }
     } = instance;
 
-    // Available filter types from config
+    // Available filter types from adapter
     const availableFilters = React.useMemo(() => {
-        return Object.entries(adapterTypeDef).map(([key, config]) => ({
+        return Object.entries(adapter.value).map(([key, config]) => ({
             value: key,
             label: key.charAt(0).toUpperCase() + key.slice(1)
         }));
-    }, []);
+    }, [adapter.value]);
 
     // Function to create a new filter
     const handleAddFilter = React.useCallback(
-        (filterType: keyof TAdapter["value"] extends string ? string & keyof TAdapter["value"] : never) => {
+        (filterType: keyof TAdapter["value"] & string) => {
             const filter = generateFilter({
                 type: filterType
             });
 
             addFilter(filter);
         },
-        [addFilter]
+        [addFilter, generateFilter]
     );
 
     const isFiltered = filters.length > 0;
@@ -86,11 +103,11 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({ instance, onFi
                     {isFiltered && (
                         <div className="flex max-h-40 flex-col gap-2 overflow-y-auto py-0.5 pr-1">
                             {filters.map((filter, index) => {
-                                // Get the filter component for this filter
-                                const FilterComponent = getComponent(filter.type, {
+                                // Get the filter component for this filter type
+                                const FilterComponent = adapter.getComponent(filter.type, {
                                     label: filter.label,
                                     value: filter.state.value,
-                                    onChange: (value: string | string[]) => {
+                                    onChange: (value: any) => {
                                         updateFilter(filter.id, {
                                             state: {
                                                 ...filter.state,
@@ -99,7 +116,7 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({ instance, onFi
                                         });
                                     },
                                     operator: filter.state.operator,
-                                    meta: filtersConfig.find((f) => f.id === filter.type)?.meta ?? {}
+                                    meta: filtersConfig.find((f) => f.id === filter.id)?.meta
                                 });
 
                                 return (
@@ -124,14 +141,20 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({ instance, onFi
 
                                         {/* Filter type label */}
                                         <div className="min-w-[5rem]">
-                                            <span className="text-sm font-medium">{filter.type}</span>
+                                            <span className="text-sm font-medium">{String(filter.type)}</span>
                                         </div>
 
                                         {/* Filter component */}
                                         <div className="flex-1">{FilterComponent}</div>
 
                                         {/* Remove filter button */}
-                                        <Button variant="outline" size="icon" className="size-8 shrink-0 rounded" onClick={() => removeFilter(filter.id)} aria-label={`Remove ${filter.type} filter`}>
+                                        <Button 
+                                            variant="outline" 
+                                            size="icon" 
+                                            className="size-8 shrink-0 rounded" 
+                                            onClick={() => removeFilter(filter.id)} 
+                                            aria-label={`Remove ${filter.type} filter`}
+                                        >
                                             <Trash2 className="size-3.5" aria-hidden="true" />
                                         </Button>
                                     </div>
@@ -158,7 +181,7 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({ instance, onFi
                                             {availableFilters.map((filterType) => (
                                                 <CommandItem
                                                     key={filterType.value}
-                                                    onSelect={() => handleAddFilter(filterType.value as keyof TAdapter["value"] extends string ? string & keyof TAdapter["value"] : never)}
+                                                    onSelect={() => handleAddFilter(filterType.value as keyof TAdapter["value"] & string)}
                                                 >
                                                     {filterType.label}
                                                 </CommandItem>
