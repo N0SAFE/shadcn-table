@@ -10,9 +10,9 @@ import {
 import { BaseFilterProps } from "@/config/data-table";
 
 export interface SelectFilterProps extends BaseFilterProps<string> {
-  meta?: {
+  meta?: () => {
     options: Array<{ label: string; value: string }>;
-    placeholder?: string;
+    placeholder: string;
   };
 }
 
@@ -22,8 +22,11 @@ export function SelectFilter({
   operator,
   meta 
 }: SelectFilterProps) {
-  const options = meta?.options ?? [];
-  const placeholder = meta?.placeholder ?? "Select...";
+  console.log('ui')
+  console.log(meta?.())
+
+  const options = meta?.()?.options ?? [];
+  const placeholder = meta?.()?.placeholder ?? "Select...";
 
   return (
     <Select value={value} onValueChange={onChange}>

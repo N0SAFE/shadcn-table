@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { z } from "zod";
 import { filterSchema } from "@/lib/parsers";
 import { getDefaultFilterOperator } from "@/lib/data-table";
-import { dataTableConfig } from "@/config/data-table";
 import { FilterComponent } from "./filter-components";
 import { FilterAdapter, FilterValue } from "@/config/data-table";
 

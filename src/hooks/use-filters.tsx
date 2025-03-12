@@ -1,143 +1,99 @@
-import { Filter, FilterAdapter, FilterConfig, FiltersActions, FiltersInstance } from "@/config/data-table";
-import { CreateFiltersOptions } from "@/lib/create-filters";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Filter,
+  FilterAdapter,
+  FilterConfig,
+  FiltersActions,
+  FiltersInstance,
+  FilterTypeDef,
+  FilterValue
+} from "@/config/data-table";
 
 export interface UseFiltersOptions<T extends FilterAdapter> {
-    onChange?: (filters: Filter<T>[], joinOperator: "and" | "or") => void;
-    state?: {
-        filters?: Filter<T>[];
-        joinOperator?: "and" | "or";
-    };
-    useActiveFilters?: boolean;
+  onChange?: (filters: Filter<T>[], joinOperator: "and" | "or") => void;
+  state: {
+    filters: Filter<T>[];
+    joinOperator?: "and" | "or";
+  };
 }
 
-export function useFilters<T extends FilterAdapter>(adapter: T, config: FilterConfig<T>[], options?: UseFiltersOptions<T>): FiltersInstance<T> {
-    const generateFilter = ({ id, type, getDefaultValue, label }: Parameters<FiltersActions<T>['generateFilter']>[0]): ReturnType<FiltersActions<T>['generateFilter']> => {
-        return {
-            id: id || Math.random().toString(36).substring(2, 15),
-            type: type,
-            label: config.find((cfg) => cfg.id === id)?.label! || label || "Error: label not defined",
-            state: {
-                value: getDefaultValue?.() ?? adapter.getDefaultValue(type as string),
-                operator: adapter.getDefaultOperator(type as string),
-                isActive: true,
-            }
-        };
-    };
-    const defaultActiveFiltersConfig = useMemo(() => config.filter((cfg) => cfg.isActive), [config]);
+export function useFilters<T extends FilterAdapter>(
+  adapter: T,
+  configFn: (createFilter: <K extends keyof T['value'] & string>(
+    config: {
+      type: K;
+      id?: string;
+      label?: string;
+      defaultValue?: T['value'][K] extends FilterTypeDef<infer V> ? V : never;
+      meta?: T['value'][K] extends FilterTypeDef<any, infer M> ? Partial<M> : never;
+    }
+  ) => FilterConfig<T>) => FilterConfig<T>[],
+  options: UseFiltersOptions<T>
+): FiltersInstance<T> {
+  const createFilter = <K extends keyof T['value'] & string>(
+    config: {
+      type: K;
+      id?: string;
+      label?: string;
+      defaultValue?: T['value'][K] extends FilterTypeDef<infer V> ? V : never;
+      meta?: T['value'][K] extends FilterTypeDef<any, infer M> ? Partial<M> : never;
+    }
+  ): FilterConfig<T> => {
+    const filterDef = adapter.value[config.type];
+    if (!filterDef) {
+      throw new Error(`Filter type "${String(config.type)}" not found in adapter`);
+    }
 
-    const defaultFilters = useMemo(() => {
-        return defaultActiveFiltersConfig.map((cfg) => {
-            return generateFilter(cfg);
-        });
-    }, [defaultActiveFiltersConfig, generateFilter]);
-
-    const [filters, _setFilters] = useState<Filter<T>[]>(defaultFilters);
-    const [joinOperator, _setJoinOperator] = useState<"and" | "or">("and");
-
-    // State to trigger re-renders when filters change
-    const [version, setVersion] = useState(0);
-
-    // Create stable wrapper functions that trigger re-renders
-    const addFilter = useCallback(
-        (filter: Filter<T>) => {
-            setVersion((v) => v + 1);
-            options?.onChange?.(filters?.concat(filter) || [filter], joinOperator);
-        },
-        [filters, joinOperator, options?.onChange]
-    );
-
-    const updateFilter = useCallback(
-        (id: string, updates: Partial<Omit<Filter<T>, "id" | "type">>) => {
-            setVersion((v) => v + 1);
-            options?.onChange?.(
-                filters.map((filter) => (filter.id === id ? { ...filter, ...updates } : filter)),
-                joinOperator
-            );
-        },
-        [filters, joinOperator, options?.onChange]
-    );
-
-    const removeFilter = useCallback(
-        (id: string) => {
-            setVersion((v) => v + 1);
-            options?.onChange?.(
-                filters.filter((filter) => filter.id !== id),
-                joinOperator
-            );
-        },
-        [filters, joinOperator, options?.onChange]
-    );
-
-    const setJoinOperator = useCallback(
-        (operator: "and" | "or") => {
-            setVersion((v) => v + 1);
-            options?.onChange?.(filters, operator);
-        },
-        [filters, options?.onChange]
-    );
-
-    const clearFilters = useCallback(() => {
-        setVersion((v) => v + 1);
-        options?.onChange?.([], joinOperator);
-    }, [joinOperator, options?.onChange]);
-
-    useEffect(() => {
-        if (options?.useActiveFilters) {
-            _setFilters(defaultFilters);
-        }
-    }, [config, options?.useActiveFilters]);
-
-    // Force re-render if version changes
     return {
-        state: {
-            filters,
-            joinOperator
-        },
-        actions: {
-            addFilter,
-            updateFilter,
-            removeFilter,
-            setJoinOperator,
-            clearFilters,
-            setFilters: _setFilters,
-            generateFilter,
-        },
-        // callbacks: {
-        //   onFilterChange: (cb: (filters: Filter<T>[], joinOperator: 'and' | 'or') => void) => {
-        //     options.onChange = cb;
-        //     },
-        //   setFilters: _setFilters,
-        // },
-        config: {
-            filters: {
-                value: config,
-                defaultJoinOperator: options?.state?.joinOperator || "and",
-                getDefaultActiveFiltersId: () => {
-                    return config.filter((cfg) => cfg.isActive).map((cfg) => cfg.id);
-                }
-            },
-            adapter: adapter
-        },
-        // getFilterComponent: (id: string) => {
-        //   const filter = filters.find(f => f.id === id);
-        //   if (!filter) return null;
-        //   const filterConfig = config.filtersConfig.find(f => f.id === filter.type);
-        //   if (!filterConfig) return null;
-        //   const FilterComponent = filterConfig.render;
-        //   return (
-        //     <FilterComponent
-        //       key={filter.id}
-        //       filter={filter}
-        //       onChange={(newFilter) => {
-        //         updateFilter(filter.id, newFilter);
-        //       }}
-        //       onRemove={() => {
-        //         removeFilter(filter.id);
-        //       }}
-        //     />
-        //   );
-        // },
-        _version: version // Used internally to track changes
+      id: config.id || String(config.type),
+      type: config.type as unknown as keyof T["value"] extends string ? string & keyof T["value"] : never,
+      label: config.label || String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1),
+      meta: config.meta as T extends FilterAdapter<any, infer Meta> ? Meta : never,
+      getDefaultValue: config.defaultValue !== undefined 
+        ? () => config.defaultValue as FilterValue
+        : filterDef.defaultValue !== undefined 
+          ? () => filterDef.defaultValue as FilterValue
+          : undefined,
     };
+  };
+
+  const config = configFn(createFilter);
+
+  const generateFilter = ({
+    id,
+    type,
+    getDefaultValue,
+    label,
+  }: Parameters<FiltersActions<T>["generateFilter"]>[0]): ReturnType<
+    FiltersActions<T>["generateFilter"]
+  > => {
+    return {
+      configId: id,
+      id: Math.random().toString(36).substring(2, 15),
+      type: type,
+      label:
+        label ||
+        config.find((cfg) => cfg.type === type)?.label! ||
+        "Error: label not defined",
+      state: {
+        value:
+          getDefaultValue?.() ??
+          adapter.getFilterTypeDef(type as string).defaultValue,
+        operator: adapter.getFilterTypeDef(type as string).defaultOperator,
+      },
+    };
+  };
+
+  return {
+    actions: {
+      generateFilter,
+    },
+    config: {
+      filters: {
+        value: config,
+        defaultJoinOperator: options?.state?.joinOperator || "and",
+      },
+      adapter: adapter,
+    },
+    _version: 1
+  };
 }

@@ -1,9 +1,17 @@
 import { FilterAdapter, FilterTypeDef } from "@/config/data-table";
 
-export function createAdapter<A extends FilterAdapter,
-AdapterValue extends Pick<A, 'value'>,
-AdapterFn extends Omit<A, 'value'>,
-    
->(adapterValue: AdapterValue, adapterFn: (adapterValue: AdapterValue) => A): A {
-    return adapterFn(adapterValue);
+export function createAdapter<
+  Meta,
+  AdapterValue extends Record<string, FilterTypeDef<any, any>>
+>(adapterValue: AdapterValue): FilterAdapter<any, Meta, AdapterValue> {
+  return {
+    value: adapterValue,
+    getFilterTypeDef(type: keyof AdapterValue) {
+      const filterTypeDef = adapterValue[type];
+      if (!filterTypeDef) {
+        throw new Error(`Filter type "${String(type)}" not found in adapter`);
+      }
+      return filterTypeDef;
+    }
+  };
 }

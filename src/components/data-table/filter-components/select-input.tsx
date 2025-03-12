@@ -22,6 +22,8 @@ export function SelectFilterInput({
   operator,
   placeholder 
 }: FilterComponentProps) {
+  console.log('ui')
+
   const inputId = React.useId();
 
   // Skip rendering input for isEmpty/isNotEmpty operators
