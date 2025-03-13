@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { FilterComponentProps } from "@/types";
-import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 
 export function TextFilterInput({
   value,
@@ -9,20 +8,22 @@ export function TextFilterInput({
   placeholder,
   disabled,
   operator,
+  meta
 }: FilterComponentProps) {
   const debouncedOnChange = useDebouncedCallback((newValue: string) => {
     onChange(newValue);
   }, 300);
 
-  // Skip rendering input for isEmpty/isNotEmpty operators
-  if (operator === "isEmpty" || operator === "isNotEmpty") {
+  // Check if we should hide input for isEmpty/isNotEmpty operators
+  const shouldHideInput = (operator === "isEmpty" || operator === "isNotEmpty") && 
+    meta?.showInputForEmptyOperators !== true;
+
+  if (shouldHideInput) {
     return (
       <div
         role="status"
         aria-live="polite"
-        aria-label={`Filter is ${
-          operator === "isEmpty" ? "empty" : "not empty"
-        }`}
+        aria-label={`Filter is ${operator === "isEmpty" ? "empty" : "not empty"}`}
         className="h-8 w-full rounded border border-dashed"
       />
     );

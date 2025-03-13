@@ -110,7 +110,7 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
           align="start"
           collisionPadding={16}
           className={cn(
-            "flex w-[calc(100vw-theme(spacing.12))] min-w-60 max-w-[25rem] origin-[var(--radix-popover-content-transform-origin)] flex-col p-4 sm:w-[25rem]",
+            "flex min-w-[480px] origin-[var(--radix-popover-content-transform-origin)] flex-col p-4",
             isFiltered ? "gap-3.5" : "gap-2"
           )}
         >
@@ -127,7 +127,7 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
 
           {/* Active filters */}
           {isFiltered && (
-            <div className="flex max-h-40 flex-col gap-2 overflow-y-auto py-0.5 pr-1">
+            <div className="flex max-h-40 flex-col gap-2 overflow-y-auto py-0.5 pr-1 overflow-x-hidden">
               {filters.map((filter, index) => {
                 // Get the filter component for this filter type
                 console.log("call components with", {
@@ -154,9 +154,12 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
                   filtersConfig,
                   filter,
                 });
-                const FilterComponent = adapter
-                  .getFilterTypeDef(filter.type)
-                  .component({
+                const filterDef = adapter.getFilterTypeDef(filter.type);
+                const operators = filterDef.operators || [];
+
+                const FilterComponent = filterDef.component({
+                  selectedOperator: filter.state.operator,
+                  props: {
                     label: filter.label,
                     value: filter.state.value,
                     onChange: (value: any) => {
@@ -177,7 +180,8 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
                     operator: filter.state.operator,
                     meta: filtersConfig.find((f) => f.id === filter.configId)
                       ?.meta,
-                  });
+                  },
+                });
 
                 return (
                   <div key={filter.id} className="flex items-center gap-2">
@@ -215,10 +219,54 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
                     </div>
 
                     {/* Filter type label */}
-                    <div className="min-w-[5rem]">
-                      <span className="text-sm font-medium">
-                        {String(filter.label)}
+                    <div className="min-w-[5rem] max-w-[5rem]">
+                      <span
+                        className="text-sm font-medium block truncate"
+                        title={String(filter.label)}
+                      >
+                        {String(filter.label).length > 12
+                          ? String(filter.label).slice(0, 12) + "..."
+                          : String(filter.label)}
                       </span>
+                    </div>
+
+                    {/* Operator selection */}
+                    <div className="w-32">
+                      <Select
+                        value={filter.state.operator}
+                        onValueChange={(value: string) => {
+                          onFiltersChange?.(
+                            filters.map((f) =>
+                              f.id === filter.id
+                                ? {
+                                    ...f,
+                                    state: {
+                                      ...f.state,
+                                      operator: value,
+                                    },
+                                  }
+                                : f
+                            )
+                          );
+                        }}
+                      >
+                        <SelectTrigger
+                          aria-label="Select operator"
+                          className="h-8 rounded"
+                        >
+                          <SelectValue placeholder="Select operator" />
+                        </SelectTrigger>
+                        <SelectContent
+                          position="popper"
+                          className="min-w-[var(--radix-select-trigger-width)]"
+                        >
+                          {operators.map((op) => (
+                            <SelectItem key={op.value} value={op.value}>
+                              {op.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Filter component */}

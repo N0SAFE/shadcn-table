@@ -20,7 +20,7 @@ import { useFeatureFlags } from "./feature-flags-provider";
 import { getColumns } from "./tasks-table-columns";
 import { TasksTableFloatingBar } from "./tasks-table-floating-bar";
 import { UpdateTaskSheet } from "./update-task-sheet";
-import { directusFilterAdapter } from "@/lib/directus-filter-adapter";
+import { directusFilterAdapter } from "@/lib/adapter/directus-filter-adapter";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { useFilters } from "@/hooks/use-filters";

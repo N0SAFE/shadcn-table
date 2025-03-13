@@ -22,6 +22,7 @@ export interface MultiSelectFilterProps extends BaseFilterProps<string[]> {
   meta?: {
     options: Array<{ label: string; value: string }>;
     placeholder?: string;
+    showInputForEmptyOperators?: boolean;
   };
 }
 
@@ -36,8 +37,11 @@ export function MultiSelectFilter({
   const [open, setOpen] = React.useState(false);
   const selectedValues = new Set(value);
 
-  // Skip rendering input for isEmpty/isNotEmpty operators
-  if (operator === "isEmpty" || operator === "isNotEmpty") {
+  // Check if we should hide input for isEmpty/isNotEmpty operators
+  const shouldHideInput = (operator === "isEmpty" || operator === "isNotEmpty") && 
+    meta?.showInputForEmptyOperators !== true;
+
+  if (shouldHideInput) {
     return (
       <div 
         role="status"
@@ -57,61 +61,58 @@ export function MultiSelectFilter({
           className="h-8 w-full justify-between"
         >
           <div className="flex flex-wrap gap-1">
-            {value.length > 0 ? (
-              value.map((selectedValue) => {
-                const option = options.find((opt) => opt.value === selectedValue);
-                return option ? (
-                  <Badge
-                    key={selectedValue}
-                    variant="secondary"
-                    className="rounded-sm px-1 font-normal"
-                  >
-                    {option.label}
-                  </Badge>
-                ) : null;
-              })
+            {selectedValues.size > 0 ? (
+              Array.from(selectedValues).map((selectedValue) => (
+                <Badge
+                  key={selectedValue}
+                  variant="secondary"
+                  className="rounded-sm px-1 font-normal"
+                >
+                  {options.find((opt) => opt.value === selectedValue)?.label ||
+                    selectedValue}
+                </Badge>
+              ))
             ) : (
               <span className="text-muted-foreground">{placeholder}</span>
             )}
           </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" align="start">
+      <PopoverContent className="w-full p-0" align="start">
         <Command>
           <CommandInput placeholder={placeholder} />
           <CommandEmpty>No options found.</CommandEmpty>
           <CommandGroup>
-            <CommandList>
-              {options.map((option) => {
-                const isSelected = selectedValues.has(option.value);
-                return (
-                  <CommandItem
-                    key={option.value}
-                    onSelect={() => {
-                      if (isSelected) {
-                        const newValue = value.filter((v) => v !== option.value);
-                        onChange(newValue);
-                      } else {
-                        onChange([...value, option.value]);
-                      }
-                    }}
+            {options.map((option) => {
+              const isSelected = selectedValues.has(option.value);
+              return (
+                <CommandItem
+                  key={option.value}
+                  onSelect={() => {
+                    const newSelectedValues = new Set(selectedValues);
+                    if (isSelected) {
+                      newSelectedValues.delete(option.value);
+                    } else {
+                      newSelectedValues.add(option.value);
+                    }
+                    onChange(Array.from(newSelectedValues));
+                  }}
+                >
+                  <div
+                    className={cn(
+                      "mr-2 flex size-4 items-center justify-center rounded-sm border border-primary",
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "opacity-50 [&_svg]:invisible"
+                    )}
                   >
-                    <div
-                      className={cn(
-                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                        isSelected
-                          ? "bg-primary text-primary-foreground"
-                          : "opacity-50 [&_svg]:invisible"
-                      )}
-                    >
-                      <Check className={cn("h-4 w-4")} />
-                    </div>
-                    <span>{option.label}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandList>
+                    <Check className={cn("size-4")} />
+                  </div>
+                  {option.label}
+                </CommandItem>
+              );
+            })}
           </CommandGroup>
         </Command>
       </PopoverContent>

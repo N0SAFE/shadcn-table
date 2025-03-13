@@ -7,10 +7,14 @@ export function NumberFilterInput({
   onChange, 
   placeholder, 
   disabled, 
-  operator 
+  operator,
+  meta
 }: FilterComponentProps) {
-  // Skip rendering input for isEmpty/isNotEmpty operators
-  if (operator === "isEmpty" || operator === "isNotEmpty") {
+  // Check if we should hide input for isEmpty/isNotEmpty operators
+  const shouldHideInput = (operator === "isEmpty" || operator === "isNotEmpty") && 
+    meta?.showInputForEmptyOperators !== true;
+
+  if (shouldHideInput) {
     return (
       <div 
         role="status"
@@ -33,5 +37,3 @@ export function NumberFilterInput({
     />
   );
 }
-
-export default NumberFilterInput;
