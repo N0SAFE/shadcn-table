@@ -12,6 +12,7 @@ import {
   FilterTypeDef,
 } from "@/config/data-table";
 import { createAdapter, createFilterTypeDef } from "./create-adapter";
+import BooleanSelectInput from "@/components/data-table/filter-components/boolean-select";
 
 // // Define specific value types for each filter type
 // type TextFilterValue = string;
@@ -92,6 +93,15 @@ export const directusFilterAdapter = createAdapter({
       ) : (
         <TextFilter {...props} />
       )
+  ),
+  boolean: createFilterTypeDef(
+    [{ value: "_eq", label: "Equals" }] as const,
+    {
+      defaultOperator: "_eq",
+      defaultValue: false,
+      props: (_: Parameters<typeof BooleanSelectInput>[0]) => void 0,
+    },
+    ({ props }) => <BooleanSelectInput {...props} />
   ),
   date: createFilterTypeDef(
     [
@@ -200,10 +210,7 @@ export const directusFilterAdapter = createAdapter({
       defaultValue: "",
       props: (_: Parameters<typeof TextFilter>[0]) => void 0,
     },
-    ({
-      props,
-      selectedOperator,
-    }) =>
+    ({ props, selectedOperator }) =>
       selectedOperator === "_null" ||
       selectedOperator === "_nnull" ||
       selectedOperator === "_empty" ||

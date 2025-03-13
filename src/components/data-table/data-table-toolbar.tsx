@@ -1,36 +1,44 @@
-"use client";
-
-import type { Table } from "@tanstack/react-table";
-import { X } from "lucide-react";
 import * as React from "react";
-
-import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
-import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
+import { Table } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
-import { Filter, FilterAdapter, FiltersInstance } from "@/config/data-table";
+import { Button } from "@/components/ui/button";
+import { DataTableViewOptions } from "./data-table-view-options";
+import { DataTableFilterList } from "./data-table-filter-list";
+import {
+  FilterAdapter,
+  FiltersInstance,
+  type Filter,
+} from "@/config/data-table";
 
-interface DataTableToolbarProps<TData, TAdapter extends FilterAdapter> extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableToolbarProps<TData, TAdapter extends FilterAdapter>
+  extends React.HTMLAttributes<HTMLDivElement> {
   table: Table<TData>;
   instance: FiltersInstance<TAdapter>;
-  onFilterChange?: (filters: Filter<TAdapter>[], joinOperator: 'and' | 'or') => void;
-  children?: React.ReactNode;
+  filters: Filter<TAdapter>[];
+  joinOperator: "and" | "or";
+  onFilterChange?: (filters: Filter<TAdapter>[]) => void;
+  onJoinOperatorChange?: (operator: "and" | "or") => void;
 }
 
 export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
   table,
   instance,
+  filters,
+  joinOperator,
   onFilterChange,
+  onJoinOperatorChange,
   children,
   className,
   ...props
 }: DataTableToolbarProps<TData, TAdapter>) {
-  const {
-    state: { filters, joinOperator },
-    actions: {
-      clearFilters,
-      updateFilter
-    }
-  } = instance;
+  const [selectedFilters, setSelectedFilters] = React.useState<string[]>([]);
+
+  console.log("DataTableToolbar", {
+    filters,
+    joinOperator,
+    selectedFilters,
+  });
 
   const isFiltered = filters.length > 0;
 
@@ -43,35 +51,24 @@ export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
       {...props}
     >
       <div className="flex flex-1 items-center gap-2">
-        {filters.map((filter) => {
-          const filterComponent = instance.config.adapter.getComponent(filter.type, {
-            label: filter.label,
-            value: filter.state.value,
-            onChange: (value) => {
-              updateFilter(filter.id, {
-                state: {
-                  ...filter.state,
-                  value
-                }
-              });
-            },
-            operator: filter.state.operator,
-          });
-          
-          if (!filterComponent) return null;
-
-          return (
-            <div key={filter.id} className="flex items-center gap-2">
-              {filterComponent}
-            </div>
-          );
-        })}
+        <DataTableFilterList
+          instance={instance}
+          filters={filters}
+          onFiltersChange={onFilterChange}
+          selectedFilters={selectedFilters}
+          setSelectedFilters={setSelectedFilters}
+        />
         {isFiltered && (
           <Button
             aria-label="Reset filters"
             variant="ghost"
             className="h-8 px-2 lg:px-3"
-            onClick={() => clearFilters()}
+            onClick={() => {
+              onFilterChange?.([]);
+              onJoinOperatorChange?.(
+                instance.config.filters.defaultJoinOperator
+              );
+            }}
           >
             Reset
             <X className="ml-2 size-4" aria-hidden="true" />

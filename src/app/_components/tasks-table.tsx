@@ -223,7 +223,18 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
             joinOperator={operator}
           />
         ) : (
-          <DataTableToolbar table={table} instance={filtersInstance} />
+          <DataTableToolbar 
+            table={table} 
+            instance={filtersInstance}
+            filters={filters}
+            joinOperator={operator}
+            onFilterChange={(filters) => {
+              setFilters(filters);
+            }}
+            onJoinOperatorChange={(operator) => {
+              setOperator(operator);
+            }}
+          />
         )}
       </DataTable>
       <UpdateTaskSheet

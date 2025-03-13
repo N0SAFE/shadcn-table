@@ -34,8 +34,10 @@ export interface FilterTypeDef<
 export type FilterAdapter<
   Data = any,
   Meta = any,
+  ComponentProps extends BaseFilterProps<Data, Meta> = BaseFilterProps<Data, Meta>,
+  FilterOperator extends FilterOperatorDef = FilterOperatorDef,
   T = {
-    [key: string]: FilterTypeDef<Data, Meta>;
+    [key: string]: FilterTypeDef<Data, Meta, ComponentProps, FilterOperator>;
   }
 > = {
   value: T;
