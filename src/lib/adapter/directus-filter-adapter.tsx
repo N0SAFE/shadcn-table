@@ -49,10 +49,7 @@ export const directusFilterAdapter = createAdapter({
       props: (_: Parameters<typeof TextFilter>[0]) => void 0,
     },
     ({ props, selectedOperator }) =>
-      selectedOperator === "_null" ||
-      selectedOperator === "_nnull" ||
-      selectedOperator === "_empty" ||
-      selectedOperator === "_nempty" ? (
+      ["_null", "_nnull", "_empty", "_nempty"].includes(selectedOperator)? (
         <div
           role="status"
           aria-live="polite"
@@ -81,10 +78,7 @@ export const directusFilterAdapter = createAdapter({
       props: (_: Parameters<typeof TextFilter>[0]) => void 0,
     },
     ({ props, selectedOperator }) =>
-      selectedOperator === "_null" ||
-      selectedOperator === "_nnull" ||
-      selectedOperator === "_empty" ||
-      selectedOperator === "_nempty" ? (
+      ["_null", "_nnull", "_empty", "_nempty"].includes(selectedOperator)? (
         <div
           role="status"
           aria-live="polite"
@@ -153,10 +147,7 @@ export const directusFilterAdapter = createAdapter({
       props: Parameters<typeof SelectFilter>[0];
       selectedOperator: string;
     }) =>
-      selectedOperator === "_null" ||
-      selectedOperator === "_nnull" ||
-      selectedOperator === "_empty" ||
-      selectedOperator === "_nempty" ? (
+      ["_null", "_nnull", "_empty", "_nempty"].includes(selectedOperator) ? (
         <div
           role="status"
           aria-live="polite"
@@ -181,10 +172,7 @@ export const directusFilterAdapter = createAdapter({
       props: (_: Parameters<typeof MultiSelectFilter>[0]) => void 0,
     },
     ({ props, selectedOperator }) =>
-      selectedOperator === "_null" ||
-      selectedOperator === "_nnull" ||
-      selectedOperator === "_empty" ||
-      selectedOperator === "_nempty" ? (
+      ["_null", "_nnull", "_empty", "_nempty"].includes(selectedOperator) ? (
         <div
           role="status"
           aria-live="polite"
@@ -211,10 +199,7 @@ export const directusFilterAdapter = createAdapter({
       props: (_: Parameters<typeof TextFilter>[0]) => void 0,
     },
     ({ props, selectedOperator }) =>
-      selectedOperator === "_null" ||
-      selectedOperator === "_nnull" ||
-      selectedOperator === "_empty" ||
-      selectedOperator === "_nempty" ? (
+      ["_null", "_nnull", "_empty", "_nempty"].includes(selectedOperator) ? (
         <div
           role="status"
           aria-live="polite"
