@@ -47,11 +47,11 @@ export function DataTableAdvancedToolbar<
           onJoinOperatorChange={onJoinOperatorChange}
           state={{ filters, joinOperator }}
         />
-        {/* <DataTableSortList 
-          table={table}
-          debounceMs={debounceMs}
-          shallow={shallow}
-        /> */}
+          <DataTableSortList 
+            table={table}
+            debounceMs={debounceMs}
+            shallow={shallow}
+          />
       </div>
       <div className="flex items-center">
         <DataTableViewOptions table={table} />

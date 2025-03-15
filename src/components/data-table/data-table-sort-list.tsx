@@ -13,7 +13,6 @@ import {
   GripVertical,
   Trash2,
 } from "lucide-react";
-import { useQueryState } from "nuqs";
 import * as React from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -45,17 +44,22 @@ import {
   SortableItemHandle,
   SortableOverlay,
 } from "@/components/ui/sortable";
-import { dataTableConfig } from "@/config/data-table";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
-import { getSortingStateParser, sortingItemSchema } from "@/lib/parsers";
 import { cn, toSentenceCase } from "@/lib/utils";
 import { z } from "zod";
+import { sortingItemSchema } from "@/lib/parsers";
 
 interface DataTableSortListProps<TData> {
   table: Table<TData>;
   debounceMs: number;
   shallow?: boolean;
 }
+
+// Sort orders definition
+const sortOrders = [
+  { value: "asc", label: "Ascending" },
+  { value: "desc", label: "Descending" },
+];
 
 export function DataTableSortList<TData>({
   table,
@@ -64,35 +68,20 @@ export function DataTableSortList<TData>({
 }: DataTableSortListProps<TData>) {
   const id = React.useId();
 
+  // Get initial sorting state from table
   const initialSorting = (table.initialState.sorting ??
     []) as ExtendedSortingState<TData>;
 
-  // const [sorting, setSorting] = useQueryState(
-  //   "sort",
-  //   getSortingStateParser(table.getRowModel().rows[0]?.original)
-  //     .withDefault(initialSorting)
-  //     .withOptions({
-  //       clearOnDefault: true,
-  //       shallow,
-  //     }),
-  // );
-
-  const arraySortingItemSchema = z.array(sortingItemSchema);
-
-  const sorting = arraySortingItemSchema.parse(table.getState().sorting);
-  const setSorting = (
-    value:
-      | z.infer<typeof arraySortingItemSchema>
-      | ((
-          prev: z.infer<typeof arraySortingItemSchema>
-        ) => z.infer<typeof arraySortingItemSchema>)
-  ) => {
-    let newSorting = value;
-    if (typeof value === "function") {
-      newSorting = value(sorting);
-    }
-    table.setSorting(newSorting);
-  };
+  // Use table's sorting state directly
+  const sorting = table.getState().sorting as ExtendedSortingState<TData>;
+  
+  // Function to set sorting that uses table's onSortingChange handler
+  const setSorting = React.useCallback(
+    (value: ExtendedSortingState<TData> | ((prev: ExtendedSortingState<TData>) => ExtendedSortingState<TData>)) => {
+      table.setSorting(typeof value === 'function' ? value(sorting as ExtendedSortingState<TData>) : value);
+    },
+    [table, sorting]
+  );
 
   const uniqueSorting = React.useMemo(
     () =>
@@ -114,7 +103,11 @@ export function DataTableSortList<TData>({
         )
         .map((column) => ({
           id: column.id,
-          label: toSentenceCase(column.id),
+          label: column.columnDef.header 
+            ? typeof column.columnDef.header === 'string' 
+              ? column.columnDef.header 
+              : toSentenceCase(column.id)
+            : toSentenceCase(column.id),
           selected: false,
         })),
     [sorting, table]
@@ -126,7 +119,7 @@ export function DataTableSortList<TData>({
     );
     if (!firstAvailableColumn) return;
 
-    void setSorting([
+    setSorting([
       ...sorting,
       {
         id: firstAvailableColumn.id as StringKeyOf<TData>,
@@ -157,7 +150,7 @@ export function DataTableSortList<TData>({
   }
 
   function removeSort(id: string) {
-    void setSorting((prevSorting) =>
+    setSorting((prevSorting) =>
       prevSorting.filter((item) => item.id !== id)
     );
   }
@@ -323,7 +316,7 @@ export function DataTableSortList<TData>({
                           id={directionListboxId}
                           className="min-w-[var(--radix-select-trigger-width)]"
                         >
-                          {dataTableConfig.sortOrders.map((order) => (
+                          {sortOrders.map((order) => (
                             <SelectItem key={order.value} value={order.value}>
                               {order.label}
                             </SelectItem>
@@ -371,7 +364,7 @@ export function DataTableSortList<TData>({
                 size="sm"
                 variant="outline"
                 className="rounded"
-                onClick={() => setSorting(null)}
+                onClick={() => setSorting([])}
               >
                 Reset sorting
               </Button>

@@ -18,6 +18,8 @@ export function TextFilter({
   operator,
   meta,
 }: TextFilterProps) {
+  const [content, setContent] = React.useState(value);
+  
   const debouncedOnChange = useDebouncedCallback((newValue: string) => {
     onChange(newValue);
   }, 1000);
@@ -41,8 +43,11 @@ export function TextFilter({
   return (
     <Input
       type="text"
-      value={value}
-      onChange={(e) => debouncedOnChange(e.target.value)}
+      value={content}
+      onChange={(e) => {
+        setContent(e.target.value);
+        debouncedOnChange(e.target.value);
+      }}
       placeholder={placeholder}
       className="h-8 w-full"
     />
