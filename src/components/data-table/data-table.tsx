@@ -148,14 +148,16 @@ export function DataTable<TData>({
   // Wrap with DndContext if row reordering is enabled
   const tableContent = (
     <div className="overflow-hidden rounded-md border">
-      <Table>
+      <Table role="grid" aria-label="Data table" aria-rowcount={table.getRowModel().rows.length} aria-colcount={table.getAllColumns().length}>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} role="row">
               {headerGroup.headers.map((header) => (
                 <TableHead
                   key={header.id}
                   colSpan={header.colSpan}
+                  role="columnheader"
+                  aria-sort={header.column.getIsSorted() ? (header.column.getIsSorted() === "desc" ? "descending" : "ascending") : "none"}
                   style={{
                     ...getCommonPinningStyles({ column: header.column }),
                   }}
@@ -173,7 +175,7 @@ export function DataTable<TData>({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => {
+            table.getRowModel().rows.map((row, rowIndex) => {
               const isRowLoading = loadingRows.includes(row.id);
               const isExpanded = effectiveExpandedRowIds.includes(row.id);
               
@@ -184,6 +186,10 @@ export function DataTable<TData>({
                       id={row.id}
                       data-state={row.getIsSelected() && "selected"}
                       data-expanded={isExpanded || undefined}
+                      role="row"
+                      aria-rowindex={rowIndex + 1}
+                      aria-selected={row.getIsSelected()}
+                      aria-expanded={renderExpandedRow ? isExpanded : undefined}
                       className={cn(
                         isRowLoading && "relative bg-muted/50",
                         renderExpandedRow && !enableRowReordering && "cursor-pointer hover:bg-muted/40",
@@ -191,9 +197,11 @@ export function DataTable<TData>({
                       )}
                       onClick={renderExpandedRow && !enableRowReordering ? () => toggleRowExpanded(row.id) : undefined}
                     >
-                      {row.getVisibleCells().map((cell) => (
+                      {row.getVisibleCells().map((cell, cellIndex) => (
                         <TableCell
                           key={cell.id}
+                          role="gridcell"
+                          aria-colindex={cellIndex + 1}
                           style={{
                             ...getCommonPinningStyles({ column: cell.column }),
                           }}
@@ -206,8 +214,8 @@ export function DataTable<TData>({
                       ))}
                       
                       {isRowLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10">
-                          <Loader className="size-4 animate-spin text-primary" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10" aria-live="polite">
+                          <Loader className="size-4 animate-spin text-primary" aria-label="Chargement" />
                         </div>
                       )}
                     </DataTableSortableRow>
@@ -215,6 +223,10 @@ export function DataTable<TData>({
                     <TableRow
                       data-state={row.getIsSelected() && "selected"}
                       data-expanded={isExpanded || undefined}
+                      role="row"
+                      aria-rowindex={rowIndex + 1}
+                      aria-selected={row.getIsSelected()}
+                      aria-expanded={renderExpandedRow ? isExpanded : undefined}
                       className={cn(
                         isRowLoading && "relative bg-muted/50",
                         renderExpandedRow && "cursor-pointer hover:bg-muted/40",
@@ -222,9 +234,11 @@ export function DataTable<TData>({
                       )}
                       onClick={renderExpandedRow ? () => toggleRowExpanded(row.id) : undefined}
                     >
-                      {row.getVisibleCells().map((cell) => (
+                      {row.getVisibleCells().map((cell, cellIndex) => (
                         <TableCell
                           key={cell.id}
+                          role="gridcell"
+                          aria-colindex={cellIndex + 1}
                           style={{
                             ...getCommonPinningStyles({ column: cell.column }),
                           }}
@@ -237,8 +251,8 @@ export function DataTable<TData>({
                       ))}
                       
                       {isRowLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10">
-                          <Loader className="size-4 animate-spin text-primary" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-[1px] z-10" aria-live="polite">
+                          <Loader className="size-4 animate-spin text-primary" aria-label="Chargement" />
                         </div>
                       )}
                     </TableRow>
@@ -246,8 +260,8 @@ export function DataTable<TData>({
                   
                   {/* Expanded row content */}
                   {isExpanded && renderExpandedRow && (
-                    <TableRow className="border-b-0">
-                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                    <TableRow className="border-b-0" role="row" aria-rowindex={rowIndex + 2}>
+                      <TableCell colSpan={row.getVisibleCells().length} className="p-0" role="gridcell">
                         {renderExpandedRow(row.original)}
                       </TableCell>
                     </TableRow>
@@ -256,12 +270,13 @@ export function DataTable<TData>({
               );
             })
           ) : (
-            <TableRow>
+            <TableRow role="row">
               <TableCell
                 colSpan={table.getAllColumns().length}
                 className="h-24 text-center"
+                role="gridcell"
               >
-                No results.
+                Aucun résultat.
               </TableCell>
             </TableRow>
           )}
@@ -293,7 +308,7 @@ export function DataTable<TData>({
         tableContent
       )}
       <div className="flex flex-col gap-2.5">
-        <DataTablePagination table={table} />
+        <DataTablePagination table={table} aria-label="Navigation dans les pages du tableau" />
         {table.getFilteredSelectedRowModel().rows.length > 0 && floatingBar}
       </div>
     </div>

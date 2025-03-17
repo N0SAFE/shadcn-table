@@ -49,6 +49,8 @@ export function DataTableToolbar<TData, TAdapter extends FilterAdapter>({
         className
       )}
       {...props}
+      role="toolbar"
+      aria-label="Options du tableau"
     >
       <div className="flex flex-1 items-center gap-2">
         <DataTableFilterList
