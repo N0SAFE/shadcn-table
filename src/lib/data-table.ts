@@ -1,7 +1,6 @@
+import { FilterAdapter } from "@/config/data-table";
 import type { ColumnType, Filter, FilterOperator, OperatorType } from "@/types";
 import type { Column } from "@tanstack/react-table";
-import { dataTableConfig } from "@/config/data-table";
-import { FilterAdapter, FilterConfig, FiltersInstance } from "./create-filters";
 
 /**
  * Generate common pinning styles for a table column.
@@ -48,83 +47,6 @@ export function getCommonPinningStyles<TData>({
     width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
   };
-}
-
-/**
- * Determine the default filter operator for a given column type.
- *
- * This function can be called in two ways:
- * 1. With a string column type to use global dataTableConfig
- * 2. With a FiltersInstance and column type to use instance-specific adapter
- *
- * @param columnTypeOrConfig - Either the column type as string or a FiltersInstance
- * @param columnType - The column type (required when first param is FiltersInstance)
- * @returns The default FilterOperator for the given column type.
- */
-export function getDefaultFilterOperator<T extends FilterAdapter = FilterAdapter>(
-  columnTypeOrConfig: string | FiltersInstance<T>,
-  columnTypeParam?: string
-): string {
-  // If first parameter is a string (columnType), use the default config
-  if (typeof columnTypeOrConfig === 'string') {
-    const columnType = columnTypeOrConfig as ColumnType;
-    return dataTableConfig.filterConfig[columnType]?.defaultOperator || 
-           dataTableConfig.filterConfig[columnType]?.operators[0]?.value || 
-           "eq";
-  }
-  
-  // If first parameter is a FiltersInstance, use its adapter
-  const instance = columnTypeOrConfig;
-  const columnType = columnTypeParam as keyof T['value'] & string;
-  
-  if (!columnType) {
-    console.warn('Column type is required when passing a FiltersInstance to getDefaultFilterOperator');
-    return "eq";
-  }
-  
-  const adapter = instance.config.adapter;
-  return adapter.getDefaultOperator(columnType);
-}
-
-/**
- * Retrieve the list of applicable filter operators for a given column type.
- *
- * This function returns an array of filter operators that are relevant and applicable
- * to the specified column type from the standardized configuration.
- *
- * @param columnType - The type of the column for which to get filter operators.
- * @returns An array of objects, each containing a label and value for a filter operator.
- */
-export function getFilterOperators(columnType: ColumnType) {
-  const operatorConfig = dataTableConfig.filterConfig[columnType]?.operators || [];
-  
-  const operatorMap: Record<ColumnType, { label: string; value: FilterOperator }[]> = {
-    text: dataTableConfig.textOperators,
-    number: dataTableConfig.numericOperators,
-    select: dataTableConfig.selectOperators,
-    "multi-select": dataTableConfig.multiSelectOperators || dataTableConfig.selectOperators,
-    boolean: dataTableConfig.booleanOperators,
-    date: dataTableConfig.dateOperators,
-  };
-  
-  // If we have the operators in the config, filter the operatorMap by those
-  if (operatorConfig.length > 0) {
-    return operatorMap[columnType]?.filter(op => 
-      operatorConfig.includes(op.value as OperatorType)
-    ) || dataTableConfig.textOperators;
-  }
-  
-  return operatorMap[columnType] || dataTableConfig.textOperators;
-}
-
-/**
- * Get the component type to use for rendering a filter input based on column type
- * 
- * @param columnType - The type of the column
- * @returns The component name to use for rendering
- */
-export function getFilterComponent(columnType: ColumnType): string {
-  return dataTableConfig.filterConfig[columnType]?.component || "text-input";
 }
 
 /**

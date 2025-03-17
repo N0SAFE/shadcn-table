@@ -5,7 +5,7 @@ import { type Task, tasks } from "@/db/schema";
 import { takeFirstOrThrow } from "@/db/utils";
 import { asc, eq, inArray, not } from "drizzle-orm";
 import { customAlphabet } from "nanoid";
-import { revalidateTag, unstable_noStore } from "next/cache";
+import { revalidatePath, revalidateTag, unstable_noStore } from "next/cache";
 
 import { getErrorMessage } from "@/lib/handle-error";
 
@@ -64,8 +64,8 @@ export async function createTask(input: CreateTaskSchema) {
               .where(not(eq(tasks.id, newTask.id)))
               .orderBy(asc(tasks.createdAt))
               .then(takeFirstOrThrow)
-          ).id,
-        ),
+          ).id
+        )
       );
     });
 
@@ -82,6 +82,29 @@ export async function createTask(input: CreateTaskSchema) {
       data: null,
       error: getErrorMessage(err),
     };
+  }
+}
+
+export async function createTasks({
+  tasks: _tasks,
+}: {
+  tasks: Omit<Task, "id">[] | Task[];
+}) {
+  try {
+    // Validate data
+    if (!_tasks || !_tasks.length) {
+      return { error: "No tasks provided" };
+    }
+
+    // Create in database
+    await db.insert(tasks).values(_tasks);
+
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error creating tasks:", error);
+    return { error: getErrorMessage(error) };
   }
 }
 
@@ -214,5 +237,38 @@ export async function deleteTasks(input: { ids: string[] }) {
       data: null,
       error: getErrorMessage(err),
     };
+  }
+}
+
+/**
+ * Update a single task field
+ */
+export async function updateTaskField({
+  id,
+  field,
+  value,
+}: {
+  id: string;
+  field: string;
+  value: any;
+}) {
+  try {
+    // Validate data
+    if (!id) {
+      return { error: "Task ID is required" };
+    }
+
+    // Prepare update
+    const updateData: Record<string, any> = {
+      [field]: value,
+    };
+
+    // Update in database
+    await db.update(tasks).set(updateData).where(eq(tasks.id, id));
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating task field:", error);
+    return { error: getErrorMessage(error) };
   }
 }

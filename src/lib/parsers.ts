@@ -45,27 +45,16 @@ export const getSortingStateParser = <TData>(
   });
 };
 
-export const createFilterSchema = (filtersInstance: FiltersInstance) => z.object({
+export const createFilterSchema = () => z.object({
   id: z.string(),
-  value: z.union([z.string(), z.array(z.string())]),
-  type: z.string(). refine((val) => {
-    const filterConfig = filtersInstance.config.filters.value.find((filter) => filter.id === val);
-    return !!filterConfig;
-  }, {
-    message: "Invalid filter type."
-  }),
-  operator: z.string().refine((val) => {
-    const filterConfig = filtersInstance.config.filters.value.find((filter) => filter.id === val);
-    return !!filterConfig;
-  }
-  , {
-    message: "Invalid filter operator."
-  }),
+  value: z.string(),
+  type: z.string(),
+  operator: z.string(),
   rowId: z.string(),
 });
 
-export const createArrayFiltersSchemaWithJoin = (filtersInstance: FiltersInstance) => z.object({
-  filters: z.array(createFilterSchema(filtersInstance)),
+export const createArrayFiltersSchemaWithJoin = () => z.object({
+  filters: z.array(createFilterSchema()),
   joinOperator: z.enum(["and", "or"]),
 });
 
@@ -74,19 +63,14 @@ export const createArrayFiltersSchemaWithJoin = (filtersInstance: FiltersInstanc
  * @param originalRow The original row data to create the parser for.
  * @returns A parser for data table filters state.
  */
-export const getFiltersStateParser = <T extends FilterAdapter>(
-  filtersInstance: FiltersInstance
-) => {
+export const getFiltersStateParser = () => {
   // const validKeys = originalRow ? new Set(Object.keys(originalRow)) : null;
 
-  return createParser<Filter<T>[]>({
+  return createParser<Filter<FilterAdapter>[]>({
     parse: (value) => {
       try {
-        console.log(value)
         const parsed = JSON.parse(value);
-        const result = z.array(createFilterSchema(filtersInstance)).safeParse(parsed);
-
-        console.log(result)
+        const result = z.array(createFilterSchema()).safeParse(parsed);
 
         if (!result.success) return null;
 
@@ -94,7 +78,7 @@ export const getFiltersStateParser = <T extends FilterAdapter>(
         //   return null;
         // }
 
-        return result.data as Filter<T>[];
+        return result.data as Filter<FilterAdapter>[];
       } catch {
         return null;
       }

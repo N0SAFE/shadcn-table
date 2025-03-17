@@ -2,7 +2,6 @@
 
 import { type Task, tasks } from "@/db/schema";
 import type {
-  DataTableFilterField,
   DataTableRowAction,
   ExtendedSortingState,
 } from "@/types";
@@ -10,11 +9,6 @@ import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableAdvancedToolbar } from "@/components/data-table/data-table-advanced-toolbar";
 import { toSentenceCase } from "@/lib/utils";
-import type {
-  getTaskPriorityCounts,
-  getTaskStatusCounts,
-  getTasks,
-} from "../_lib/queries";
 import { DeleteTasksDialog } from "./delete-tasks-dialog";
 import { useFeatureFlags } from "./feature-flags-provider";
 import { getColumns } from "./tasks-table-columns";
@@ -68,40 +62,117 @@ import {
   SelectSeparator,
   SelectTrigger,
 } from "@/components/ui/select";
+import { DataTableDragHandle } from "@/components/data-table/data-table-drag-handle";
+import { Switch } from "@/components/ui/switch";
+import { TasksTableToolbarActions } from "./tasks-table-toolbar-actions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface TasksTableProps {
-  promises: Promise<
-    [
-      Awaited<ReturnType<typeof getTasks>>,
-      Awaited<ReturnType<typeof getTaskStatusCounts>>,
-      Awaited<ReturnType<typeof getTaskPriorityCounts>>
-    ]
-  >;
   shallow?: boolean;
 }
 
-export function TasksTable({ promises, shallow = false }: TasksTableProps) {
-  const { featureFlags } = useFeatureFlags();
+interface TasksResponse {
+  data: Task[];
+  pageCount: number;
+}
 
-  const [{ data, pageCount }, statusCounts, priorityCounts] =
-    React.use(promises);
+export function TasksTable({ shallow = false }: TasksTableProps) {
+  const { featureFlags } = useFeatureFlags();
+  const queryClient = useQueryClient();
+  
+  // States
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [pageSize, setPageSize] = React.useState(10);
+  const [isPending, startTransition] = React.useTransition();
+  const [currentAction, setCurrentAction] = React.useState<string | null>(null);
+  const [loadingRows, setLoadingRows] = React.useState<string[]>([]);
+  const [tag, setTag] = React.useState<string>("");
+  const [reorderableRows, setReorderableRows] = React.useState(false);
+  const [filters, setFilters] = React.useState<Filter<typeof directusFilterAdapter>[]>([]);
+  const [operator, setOperator] = React.useState<"and" | "or">("and");
+  const [sorting, setSorting] = React.useState<ExtendedSortingState<Task>>([
+    { id: "createdAt", desc: true },
+  ]);
+
+  const enableAdvancedTable = featureFlags.includes("advancedTable");
+  const enableFloatingBar = featureFlags.includes("floatingBar");
+
+  // React Query for fetching tasks
+  const { data: tasksData, isLoading, isFetching } = useQuery<TasksResponse>({
+    queryKey: ['tasks', pageIndex, pageSize, sorting, filters, operator, featureFlags],
+    queryFn: async (): Promise<TasksResponse> => {
+      const searchParams = new URLSearchParams({
+        page: String(pageIndex + 1),
+        perPage: String(pageSize),
+        sort: JSON.stringify(sorting),
+        filters: JSON.stringify(filters),
+        joinOperator: operator,
+        flags: JSON.stringify(featureFlags),
+      });
+      
+      const response = await fetch(`/api/tasks?${searchParams}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      return data as TasksResponse;
+    },
+  });
+
+  // Function to remove items from cache
+  const removeFromCache = React.useCallback((ids: string[]) => {
+    queryClient.setQueryData<TasksResponse>(['tasks', pageIndex, pageSize, sorting, filters, operator, featureFlags], 
+      (oldData) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          data: oldData.data.filter(task => !ids.includes(task.id))
+        };
+      }
+    );
+  }, [queryClient, pageIndex, pageSize, sorting, filters, operator, featureFlags]);
+
+  // Update the delete handler
+  const handleDelete = React.useCallback(async (ids: string[]) => {
+    setLoadingRows(ids);
+    const result = await deleteTasks({ ids });
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      removeFromCache(ids);
+      toast.success("Tasks deleted successfully");
+      table.toggleAllRowsSelected(false);
+    }
+    setLoadingRows([]);
+  }, [removeFromCache]);
+
+  // Update the update handler
+  const handleUpdate = React.useCallback(async (ids: string[], updates: Partial<Task>) => {
+    setLoadingRows(ids);
+    const result = await updateTasks({ ids, ...updates });
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      // Invalidate the query instead of manual cache update for updates
+      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success("Tasks updated successfully");
+    }
+    setLoadingRows([]);
+  }, [queryClient]);
 
   const [rowAction, setRowAction] =
     React.useState<DataTableRowAction<Task> | null>(null);
 
   const columns = React.useMemo(() => getColumns({ setRowAction }), []);
 
-  const [filters, setFilters] = React.useState<
-    Filter<typeof directusFilterAdapter>[]
-  >([]);
-  const [operator, setOperator] = React.useState<"and" | "or">("and");
-  
-  // State for tag input in the sheet
-  const [tag, setTag] = React.useState<string>("");
+  const data = tasksData?.data ?? [];
+  const pageCount = tasksData?.pageCount ?? -1;
 
-  // State for pending actions
-  const [isPending, startTransition] = React.useTransition();
-  const [currentAction, setCurrentAction] = React.useState<string | null>(null);
+  // Transform filters to proper column filters for the table
+  const columnFilters = React.useMemo(() => {
+    return filters.map((filter) => ({
+      id: filter.id,
+      value: filter,
+    }));
+  }, [filters]);
 
   const filtersInstance = useFilters(
     directusFilterAdapter,
@@ -112,7 +183,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
         label: "Title",
         meta: {
           placeholder: "Search by title...",
-          test: "ter"
+          test: ""  // Adding required test property
         }
       }),
       createFilter({
@@ -147,7 +218,6 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
     ],
     {
       onChange: (filters, joinOperator) => {
-        console.log(filters);
         setFilters(filters);
         setOperator(joinOperator);
       },
@@ -158,37 +228,60 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
     }
   );
 
-  const enableAdvancedTable = featureFlags.includes("advancedTable");
-  const enableFloatingBar = featureFlags.includes("floatingBar");
+  // Add a drag handle column when reordering is enabled
+  const columnsWithDragHandle = React.useMemo(() => {
+    if (!reorderableRows) return columns;
 
-  // State for sorting
-  const [sorting, setSorting] = React.useState<ExtendedSortingState<Task>>([
-    { id: "createdAt", desc: true },
-  ]);
+    return [
+      {
+        id: "drag-handle",
+        header: () => null,
+        cell: ({ row }) => {
+          return <DataTableDragHandle id={row.id} />;
+        },
+        size: 30,
+        enableSorting: false,
+        enableHiding: false,
+      },
+      ...columns,
+    ];
+  }, [columns, reorderableRows]);
 
-  // Transform filters to proper column filters for the table
-  const columnFilters = React.useMemo(() => {
-    return filters.map((filter) => ({
-      id: filter.id,
-      value: filter,
-    }));
-  }, [filters]);
+  // Handle row reordering
+  const handleRowReorder = React.useCallback((rowIds: string[]) => {
+    toast.success(`Rows reordered. New order: ${rowIds.slice(0, 3).join(", ")}...`);
+  }, []);
 
   const table = useReactTable({
     data,
-    columns,
+    columns: columnsWithDragHandle,
     getCoreRowModel: getCoreRowModel(),
-    pageCount,
-    initialState: {
-      columnPinning: { right: ["actions"] },
-    },
+    pageCount: pageCount,
+    manualPagination: true,
     state: {
       sorting,
+      pagination: {
+        pageIndex,
+        pageSize,
+      },
       globalFilter: {
         joinOperator: operator,
         filters: filters,
       },
       columnFilters,
+    },
+    onPaginationChange: (updater) => {
+      if (typeof updater === "function") {
+        const state = updater({
+          pageIndex,
+          pageSize,
+        });
+        setPageIndex(state.pageIndex);
+        setPageSize(state.pageSize);
+      } else {
+        setPageIndex(updater.pageIndex);
+        setPageSize(updater.pageSize);
+      }
     },
     getRowId: (originalRow) => originalRow.id,
     onSortingChange: (updater) => {
@@ -203,7 +296,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
 
   // Define the action generator function that returns JSX
   const generateActions = React.useCallback((options: ActionGeneratorOptions<Task>): React.ReactNode => {
-    const { table, helpers = {}, setIsPending } = options;
+    const { table, helpers = {}, setIsPending, setLoadingRows } = options;
     
     // Extract tag state from helpers or use a default one
     const tagState = helpers.tag as string || "";
@@ -215,13 +308,15 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
       icon: Icon, 
       label, 
       variant = "secondary", 
-      onClick 
+      onClick,
+      affectsAllSelectedRows = true
     }: { 
       id: string; 
       icon: React.ElementType; 
       label: string; 
       variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-      onClick: () => void; 
+      onClick: () => void;
+      affectsAllSelectedRows?: boolean;
     }) => {
       const isLoading = isPending && currentAction === id;
       
@@ -232,9 +327,18 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
               variant={variant}
               size="icon"
               className="size-7 border"
-              disabled={isPending && isLoading}
+              disabled={isPending}
               onClick={() => {
                 setIsPending(id);
+                setCurrentAction(id);
+                
+                // Set loading state on selected rows if this action affects rows
+                if (affectsAllSelectedRows) {
+                  const selectedRows = table.getFilteredSelectedRowModel().rows;
+                  const rowIds = selectedRows.map(row => row.id);
+                  setLoadingRows(rowIds);
+                }
+                
                 startTransition(onClick);
               }}
             >
@@ -258,13 +362,15 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
       icon: Icon, 
       label, 
       options,
-      onValueChange
+      onValueChange,
+      affectsAllSelectedRows = true
     }: { 
       id: string;
       icon: React.ElementType; 
       label: string;
       options: { label: string; value: TValue }[];
       onValueChange: (value: TValue) => void;
+      affectsAllSelectedRows?: boolean;
     }) => {
       const isLoading = isPending && currentAction === id;
       
@@ -276,7 +382,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
                 variant="secondary"
                 size="icon"
                 className="size-7 border"
-                disabled={isPending && isLoading}
+                disabled={isPending}
                 onClick={(e) => {
                   // Prevent button default behavior, letting Select handle the click
                   e.preventDefault();
@@ -297,6 +403,15 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
           <Select
             onValueChange={(value) => {
               setIsPending(id);
+              setCurrentAction(id);
+              
+              // Set loading state on selected rows if this action affects rows
+              if (affectsAllSelectedRows) {
+                const selectedRows = table.getFilteredSelectedRowModel().rows;
+                const rowIds = selectedRows.map(row => row.id);
+                setLoadingRows(rowIds);
+              }
+              
               startTransition(() => {
                 onValueChange(value as TValue);
               });
@@ -343,6 +458,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
                 return;
               }
               toast.success(`Tasks status updated to ${status}`);
+              setLoadingRows([]);  // Clear loading state when done
             });
           }}
         />
@@ -369,6 +485,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
                 return;
               }
               toast.success(`Tasks priority updated to ${priority}`);
+              setLoadingRows([]);  // Clear loading state when done
             });
           }}
         />
@@ -377,6 +494,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
           id="export"
           icon={Download}
           label="Export tasks"
+          affectsAllSelectedRows={false}  // Export doesn't change row data
           onClick={() => {
             exportTableToCSV(table, {
               excludeColumns: ["select", "actions"],
@@ -384,6 +502,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
             });
             
             toast.success("Tasks exported to CSV");
+            setCurrentAction(null);  // Clear action state when done
           }}
         />
         
@@ -391,6 +510,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
           id="copy"
           icon={ClipboardCopy}
           label="Copy to clipboard"
+          affectsAllSelectedRows={false}  // Copy doesn't change row data
           onClick={() => {
             const selectedRows = table.getFilteredSelectedRowModel().rows;
             const selectedData = selectedRows.map(row => {
@@ -399,7 +519,10 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
             }).join("\n");
             
             navigator.clipboard.writeText(selectedData)
-              .then(() => toast.success("Copied data to clipboard"))
+              .then(() => {
+                toast.success("Copied data to clipboard");
+                setCurrentAction(null);  // Clear action state when done
+              })
               .catch(() => toast.error("Failed to copy to clipboard"));
           }}
         />
@@ -408,6 +531,7 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
           id="print"
           icon={Printer}
           label="Print selected"
+          affectsAllSelectedRows={false}  // Print doesn't change row data
           onClick={() => {
             const selectedRows = table.getFilteredSelectedRowModel().rows;
             
@@ -460,8 +584,10 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
               printWindow.print();
               printWindow.close();
               toast.success("Print job sent");
+              setCurrentAction(null);  // Clear action state when done
             } else {
               toast.error("Unable to open print window");
+              setCurrentAction(null);  // Clear action state when done
             }
           }}
         />
@@ -478,7 +604,9 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
               toast.success(`${selectedRows.length} tasks archived`);
               // Clear selection after archiving
               table.toggleAllRowsSelected(false);
-            }, 500);
+              setLoadingRows([]);  // Clear loading state when done
+              setCurrentAction(null);  // Clear action state when done
+            }, 1000);
           }}
         />
         
@@ -492,7 +620,9 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
             // Mock implementation - in a real app, you'd call your API
             setTimeout(() => {
               toast.success(`${selectedRows.length} tasks marked as favorite`);
-            }, 500);
+              setLoadingRows([]);  // Clear loading state when done
+              setCurrentAction(null);  // Clear action state when done
+            }, 1000);
           }}
         />
         
@@ -531,12 +661,26 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
                         
                         const selectedRows = table.getFilteredSelectedRowModel().rows;
                         
+                        setCurrentAction("add-tag");
+                        setLoadingRows(selectedRows.map(row => row.id));
+                        
                         // Mock implementation - in a real app, you'd call your API
-                        toast.success(`Tag "${tagState}" applied to ${selectedRows.length} tasks`);
-                        setTagState("");
+                        setTimeout(() => {
+                          toast.success(`Tag "${tagState}" applied to ${selectedRows.length} tasks`);
+                          setTagState("");
+                          setCurrentAction(null);
+                          setLoadingRows([]);
+                        }, 1000);
                       }}
                     >
-                      Apply
+                      {isPending && currentAction === "add-tag" ? (
+                        <div className="flex items-center gap-1">
+                          <Loader className="size-3.5 animate-spin" aria-hidden="true" />
+                          <span>Applying...</span>
+                        </div>
+                      ) : (
+                        "Apply"
+                      )}
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -549,9 +693,15 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
                           setTagState(tagName);
                           
                           const selectedRows = table.getFilteredSelectedRowModel().rows;
+                          setCurrentAction(`tag-${tagName}`);
+                          setLoadingRows(selectedRows.map(row => row.id));
                           
                           // Mock implementation - in a real app, you'd call your API
-                          toast.success(`Tag "${tagName}" applied to ${selectedRows.length} tasks`);
+                          setTimeout(() => {
+                            toast.success(`Tag "${tagName}" applied to ${selectedRows.length} tasks`);
+                            setCurrentAction(null);
+                            setLoadingRows([]);
+                          }, 1000);
                         }}
                       >
                         {tagName}
@@ -581,11 +731,13 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
             }).then(({ error }) => {
               if (error) {
                 toast.error(error);
+                setLoadingRows([]);  // Clear loading state on error
                 return;
               }
               
               toast.success("Tasks deleted");
               table.toggleAllRowsSelected(false);
+              setLoadingRows([]);  // Clear loading state when done
             });
           }}
         />
@@ -593,72 +745,96 @@ export function TasksTable({ promises, shallow = false }: TasksTableProps) {
     );
   }, [isPending, currentAction, tag]);
 
+  // Function to handle changes in loading row state
+  const handleLoadingRowsChange = React.useCallback((rowIds: string[]) => {
+    setLoadingRows(rowIds);
+  }, []);
+
   return (
     <>
-      <DataTable
-        table={table}
-        floatingBar={
-          enableFloatingBar ? (
-            <TasksTableFloatingBar 
-              table={table} 
-              actionGenerator={generateActions}
-              helpers={{ tag, setTag }}
-            />
-          ) : null
-        }
-      >
-        {enableAdvancedTable ? (
-          <DataTableAdvancedToolbar
-            table={table}
-            shallow={false}
-            instance={filtersInstance}
-            onFiltersChange={(filters) => {
-              console.log("filters change");
-              setFilters(filters);
-            }}
-            onJoinOperatorChange={(operator) => {
-              console.log("join operator change");
-              setOperator(operator);
-            }}
-            filters={filters}
-            joinOperator={operator}
-          />
-        ) : (
-          <DataTableToolbar 
-            table={table} 
-            instance={filtersInstance}
-            filters={filters}
-            joinOperator={operator}
-            onFilterChange={(filters) => {
-              console.log("filters change");
-              setFilters(filters);
-            }}
-            onJoinOperatorChange={(operator) => {
-              setOperator(operator);
-            }}
-          />
+      <div className="relative">
+        {(isFetching || isPending) && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center">
+            <Loader className="h-6 w-6 animate-spin" />
+          </div>
         )}
-      </DataTable>
-      <UpdateTaskSheet
-        open={rowAction?.type === "update"}
-        onOpenChange={(open) =>
-          setRowAction((current) =>
-            open && current?.type === "update" ? current : null
-          )
-        }
-        task={rowAction?.row.original ?? null}
-      />
-      <DeleteTasksDialog
-        open={rowAction?.type === "delete"}
-        onOpenChange={(open) =>
-          setRowAction((current) =>
-            open && current?.type === "delete" ? current : null
-          )
-        }
-        tasks={rowAction?.row.original ? [rowAction.row.original] : []}
-        showTrigger={false}
-        onSuccess={() => rowAction?.row.toggleSelected(false)}
-      />
+        <div className="flex items-center justify-between mb-4">
+          <TasksTableToolbarActions table={table} />
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Row reordering:</span>
+            <Switch
+              checked={reorderableRows}
+              onCheckedChange={setReorderableRows}
+              aria-label="Toggle row reordering"
+            />
+          </div>
+        </div>
+        <DataTable
+          table={table}
+          loadingRows={isLoading ? [] : loadingRows}
+          enableRowReordering={reorderableRows}
+          onRowReorder={handleRowReorder}
+          floatingBar={
+            enableFloatingBar ? (
+              <TasksTableFloatingBar 
+                table={table} 
+                actionGenerator={generateActions}
+                helpers={{ tag, setTag }}
+                onLoadingRowsChange={handleLoadingRowsChange}
+              />
+            ) : null
+          }
+        >
+          {enableAdvancedTable ? (
+            <DataTableAdvancedToolbar
+              table={table}
+              shallow={false}
+              instance={filtersInstance}
+              onFiltersChange={(filters) => {
+                setFilters(filters);
+              }}
+              onJoinOperatorChange={(operator) => {
+                setOperator(operator);
+              }}
+              filters={filters}
+              joinOperator={operator}
+            />
+          ) : (
+            <DataTableToolbar 
+              table={table} 
+              instance={filtersInstance}
+              filters={filters}
+              joinOperator={operator}
+              onFilterChange={(filters) => {
+                setFilters(filters);
+              }}
+              onJoinOperatorChange={(operator) => {
+                setOperator(operator);
+              }}
+            />
+          )}
+        </DataTable>
+        <UpdateTaskSheet
+          open={rowAction?.type === "update"}
+          onOpenChange={(open) =>
+            setRowAction((current) =>
+              open && current?.type === "update" ? current : null
+            )
+          }
+          task={rowAction?.row?.original ?? null}
+        />
+        <DeleteTasksDialog
+          open={rowAction?.type === "delete"}
+          onOpenChange={(open) =>
+            setRowAction((current) =>
+              open && current?.type === "delete" ? current : null
+            )
+          }
+          tasks={rowAction?.row?.original ? [rowAction.row.original] : []}
+          showTrigger={false}
+          onSuccess={() => rowAction?.row?.toggleSelected(false)}
+        />
+      </div>
     </>
   );
 }

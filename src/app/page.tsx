@@ -15,6 +15,8 @@ import {
   getTasks,
 } from "./_lib/queries";
 import { searchParamsCache } from "./_lib/validations";
+import { Filter } from "@/config/data-table";
+import { directusFilterAdapter } from "@/lib/adapter/directus-filter-adapter";
 
 interface IndexPageProps {
   searchParams: Promise<SearchParams>;
@@ -24,7 +26,7 @@ export default async function IndexPage(props: IndexPageProps) {
   const searchParams = await props.searchParams;
   const search = searchParamsCache.parse(searchParams);
 
-  const validFilters = getValidFilters(search.filters);
+  const validFilters = getValidFilters(search.filters as Filter<typeof directusFilterAdapter>[]);
 
   const promises = Promise.all([
     getTasks({

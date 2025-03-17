@@ -107,13 +107,31 @@ export function getColumns({
 
         const Icon = getStatusIcon(status);
 
+        // Apply conditional formatting based on status
+        const getStatusStyles = () => {
+          switch (status) {
+            case "todo":
+              return "bg-muted text-muted-foreground";
+            case "in-progress":
+              return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+            case "done":
+              return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+            case "canceled":
+              return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+            default:
+              return "";
+          }
+        };
+
         return (
           <div className="flex w-[6.25rem] items-center">
             <Icon
               className="mr-2 size-4 text-muted-foreground"
               aria-hidden="true"
             />
-            <span className="capitalize">{status}</span>
+            <span className={`capitalize rounded-md px-1.5 py-0.5 ${getStatusStyles()}`}>
+              {status}
+            </span>
           </div>
         );
       },
@@ -135,13 +153,29 @@ export function getColumns({
 
         const Icon = getPriorityIcon(priority);
 
+        // Apply conditional formatting based on priority
+        const getPriorityStyles = () => {
+          switch (priority) {
+            case "low":
+              return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+            case "medium":
+              return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300";
+            case "high":
+              return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+            default:
+              return "";
+          }
+        };
+
         return (
           <div className="flex items-center">
             <Icon
               className="mr-2 size-4 text-muted-foreground"
               aria-hidden="true"
             />
-            <span className="capitalize">{priority}</span>
+            <span className={`capitalize rounded-md px-1.5 py-0.5 ${getPriorityStyles()}`}>
+              {priority}
+            </span>
           </div>
         );
       },
@@ -155,7 +189,12 @@ export function getColumns({
         <DataTableColumnHeader column={column} title="Archived" />
       ),
       cell: ({ row }) => (
-        <Badge variant="outline">{row.original.archived ? "Yes" : "No"}</Badge>
+        <Badge 
+          variant={row.original.archived ? "destructive" : "outline"}
+          className={row.original.archived ? "bg-opacity-50" : ""}
+        >
+          {row.original.archived ? "Yes" : "No"}
+        </Badge>
       ),
     },
     {
@@ -163,7 +202,17 @@ export function getColumns({
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Created At" />
       ),
-      cell: ({ cell }) => formatDate(cell.getValue() as Date),
+      cell: ({ cell }) => {
+        const date = cell.getValue() as Date;
+        // Highlight dates older than 30 days
+        const isOlderThanThirtyDays = new Date().getTime() - new Date(date).getTime() > 30 * 24 * 60 * 60 * 1000;
+        
+        return (
+          <span className={isOlderThanThirtyDays ? "text-amber-600 font-medium" : ""}>
+            {formatDate(date)}
+          </span>
+        );
+      },
     },
     {
       id: "actions",

@@ -110,7 +110,7 @@ export function DataTableFilter<TAdapter extends FilterAdapter>({
           align="start"
           collisionPadding={16}
           className={cn(
-            "flex min-w-[480px] origin-[var(--radix-popover-content-transform-origin)] flex-col p-4",
+            "flex min-w-[480px] w-auto origin-[var(--radix-popover-content-transform-origin)] flex-col p-4",
             isFiltered ? "gap-3.5" : "gap-2"
           )}
         >

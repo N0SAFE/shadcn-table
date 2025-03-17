@@ -40,7 +40,7 @@ export function useFilters<T extends FilterAdapter>(
             id: config.id || String(config.type),
             type: config.type as unknown as keyof T["value"] extends string ? string & keyof T["value"] : never,
             label: config.label || String(config.type).charAt(0).toUpperCase() + String(config.type).slice(1),
-            meta: typeof config.meta === "function" ? config.meta() : config.meta,
+            meta: config.meta,
             getDefaultValue:
                 config.defaultValue !== undefined ? () => config.defaultValue as FilterValue : filterDef.defaultValue !== undefined ? () => filterDef.defaultValue as FilterValue : undefined
         };

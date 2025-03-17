@@ -22,6 +22,7 @@ export function SelectFilter({
   operator,
   meta 
 }: SelectFilterProps) {
+  console.log(meta)
   console.log('ui')
   console.log(meta?.())
 

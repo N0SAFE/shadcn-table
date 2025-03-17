@@ -32,6 +32,7 @@ export interface ActionGeneratorOptions<TData> {
   data: TData[];
   helpers?: Record<string, any>;
   setIsPending: (actionId: string) => void;
+  setLoadingRows: (rowIds: string[]) => void;
 }
 
 // Update the ActionGenerator type to return JSX
@@ -46,6 +47,7 @@ interface TasksTableFloatingBarProps<TData = Task> {
   data?: TData[];
   helpers?: Record<string, any>;
   emptyMessage?: string;
+  onLoadingRowsChange?: (rowIds: string[]) => void;
 }
 
 export function TasksTableFloatingBar<TData = Task>({ 
@@ -54,18 +56,28 @@ export function TasksTableFloatingBar<TData = Task>({
   actionGenerator,
   data = [],
   helpers = {},
-  emptyMessage = "Select rows to use the floating action bar" 
+  emptyMessage = "Select rows to use the floating action bar",
+  onLoadingRowsChange
 }: TasksTableFloatingBarProps<TData>) {
   const rows = table.getFilteredSelectedRowModel().rows;
   const hasSelectedRows = rows.length > 0;
 
   const [isPending, startTransition] = React.useTransition();
   const [currentAction, setCurrentAction] = React.useState<string | null>(null);
+  const [loadingRows, setLoadingRows] = React.useState<string[]>([]);
   
   // Set the current pending action
   const setIsPending = (actionId: string) => {
     setCurrentAction(actionId);
   };
+  
+  // Set loading rows and notify parent component
+  const handleSetLoadingRows = React.useCallback((rowIds: string[]) => {
+    setLoadingRows(rowIds);
+    if (onLoadingRowsChange) {
+      onLoadingRowsChange(rowIds);
+    }
+  }, [onLoadingRowsChange]);
   
   // Clear selection on Escape key press
   React.useEffect(() => {
@@ -182,7 +194,8 @@ export function TasksTableFloatingBar<TData = Task>({
                     table,
                     data: data.length ? data : table.getRowModel().rows.map(row => row.original),
                     helpers,
-                    setIsPending
+                    setIsPending,
+                    setLoadingRows: handleSetLoadingRows
                   })}
                 </div>
               </>

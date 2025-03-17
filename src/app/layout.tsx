@@ -10,6 +10,7 @@ import type { Metadata, Viewport } from "next";
 
 import { Toaster } from "@/components/ui/toaster";
 import { fontMono, fontSans } from "@/lib/fonts";
+import ReactQueryProviders from "@/components/data-table/ReactQueryProviders";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -71,7 +72,7 @@ export default function RootLayout({ children }: React.PropsWithChildren) {
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
           fontSans.variable,
-          fontMono.variable,
+          fontMono.variable
         )}
       >
         <ThemeProvider
@@ -81,8 +82,10 @@ export default function RootLayout({ children }: React.PropsWithChildren) {
           disableTransitionOnChange
         >
           <div className="relative flex min-h-screen flex-col">
-            <SiteHeader />
-            <main className="flex-1">{children}</main>
+            <ReactQueryProviders>
+              <SiteHeader />
+              <main className="flex-1">{children}</main>
+            </ReactQueryProviders>
           </div>
           <TailwindIndicator />
         </ThemeProvider>
