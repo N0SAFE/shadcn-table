@@ -1,7 +1,4 @@
-import { TextFilter } from "@/components/data-table/filter-components/text-filter";
-import { Filter, FilterAdapter, FilterConfig, FiltersActions, FiltersInstance, FilterTypeDef, FilterValue, InferFilterTypeDef } from "@/config/data-table";
-import { createFilterTypeDef } from "@/lib/adapter/create-adapter";
-import { directusFilterAdapter } from "@/lib/adapter/directus-filter-adapter";
+import { Filter, FilterAdapter, FilterConfig, FiltersActions, FiltersInstance, FilterValue, InferFilterTypeDef } from "@/types";
 
 export interface UseFiltersOptions<T extends FilterAdapter> {
     onChange?: (filters: Filter<T>[], joinOperator: "and" | "or") => void;

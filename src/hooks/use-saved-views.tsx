@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Filter, FilterAdapter } from "@/config/data-table";
+import { Filter, FilterAdapter } from "@/types";
 import { SortingState, VisibilityState } from "@tanstack/react-table";
 
 export interface SavedView<TAdapter extends FilterAdapter> {
