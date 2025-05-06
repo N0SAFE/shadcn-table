@@ -93,5 +93,11 @@
   },
   "ct3aMetadata": {
     "initVersion": "7.23.1"
+  },
+  "exports": {
+    "./components": "./src/components/index.ts",
+    "./hooks": "./src/hooks/index.ts",
+    "./types": "./src/types/index.ts",
+    "./utils": "./src/utils/index.ts"
   }
 }
