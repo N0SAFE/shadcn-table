@@ -5,40 +5,15 @@ import { DataTableSkeleton } from "@/components/data-table/data-table-skeleton";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { Shell } from "@/components/shell";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getValidFilters } from "@/lib/data-table";
 
 import { FeatureFlagsProvider } from "./_components/feature-flags-provider";
 import { TasksTable } from "./_components/tasks-table";
-import {
-  getTaskPriorityCounts,
-  getTaskStatusCounts,
-  getTasks,
-} from "./_lib/queries";
-import { searchParamsCache } from "./_lib/validations";
-import { Filter } from "@/config/data-table";
-import { directusFilterAdapter } from "@/lib/adapter/directus-filter-adapter";
 
 interface IndexPageProps {
   searchParams: Promise<SearchParams>;
 }
 
 export default async function IndexPage(props: IndexPageProps) {
-  const searchParams = await props.searchParams;
-  const search = searchParamsCache.parse(searchParams);
-
-  const validFilters = getValidFilters(search.filters as Filter<typeof directusFilterAdapter>[]);
-
-  const promises = Promise.all([
-    getTasks({
-      ...search,
-      filters: validFilters,
-    }),
-    getTaskStatusCounts(),
-    getTaskPriorityCounts(),
-  ]);
-
-  console.log(await promises);
-
   return (
     <Shell className="gap-2">
       <FeatureFlagsProvider>
@@ -61,7 +36,7 @@ export default async function IndexPage(props: IndexPageProps) {
             />
           }
         >
-          <TasksTable promises={promises} />
+          <TasksTable />
         </React.Suspense>
       </FeatureFlagsProvider>
     </Shell>

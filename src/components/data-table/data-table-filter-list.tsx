@@ -13,8 +13,7 @@ import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { Check, Plus, X } from "lucide-react";
 import { ScrollArea } from "../ui/scroll-area";
-import { FilterAdapter, FiltersInstance } from "@/config/data-table";
-import { Filter } from "@/types";
+import { Filter, FilterAdapter, FiltersInstance } from "@/config/data-table";
 
 interface DataTableFilterListProps<TAdapter extends FilterAdapter> {
   instance: FiltersInstance<TAdapter>;
