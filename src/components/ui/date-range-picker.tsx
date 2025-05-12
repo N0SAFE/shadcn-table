@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { parseAsString, useQueryStates } from "nuqs";
+
 import * as React from "react";
 import type { DateRange } from "react-day-picker";
 
@@ -23,7 +23,20 @@ interface DateRangePickerProps
    * @type DateRange
    * @example { from: new Date(), to: new Date() }
    */
+  /**
+   * The default date range (used for initial value if uncontrolled)
+   */
   defaultDateRange?: DateRange;
+
+  /**
+   * Controlled date range. If provided, the component is controlled.
+   */
+  dateRange?: DateRange;
+
+  /**
+   * Callback when the date range changes.
+   */
+  onDateRangeChange?: (range: DateRange | undefined) => void;
 
   /**
    * The placeholder text of the calendar trigger button.
@@ -63,6 +76,8 @@ interface DateRangePickerProps
 
 export function DateRangePicker({
   defaultDateRange,
+  dateRange,
+  onDateRangeChange,
   placeholder = "Pick a date",
   triggerVariant = "outline",
   triggerSize = "default",
@@ -71,31 +86,21 @@ export function DateRangePicker({
   className,
   ...props
 }: DateRangePickerProps) {
-  const [dateParams, setDateParams] = useQueryStates(
-    {
-      from: parseAsString.withDefault(
-        defaultDateRange?.from?.toISOString() ?? "",
-      ),
-      to: parseAsString.withDefault(defaultDateRange?.to?.toISOString() ?? ""),
-    },
-    {
-      clearOnDefault: true,
-      shallow,
-    },
-  );
+  // Local state for uncontrolled usage
+  const [internalDate, setInternalDate] = React.useState<DateRange | undefined>(defaultDateRange);
 
-  const date = React.useMemo(() => {
-    function parseDate(dateString: string | null) {
-      if (!dateString) return undefined;
-      const parsedDate = new Date(dateString);
-      return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
+  // Use controlled dateRange if provided, otherwise use local state
+  const date = dateRange !== undefined ? dateRange : internalDate;
+
+  // Handler for date change
+  const handleDateChange = (newDateRange: DateRange | undefined) => {
+    if (onDateRangeChange) {
+      onDateRangeChange(newDateRange);
     }
-
-    return {
-      from: parseDate(dateParams.from) ?? defaultDateRange?.from,
-      to: parseDate(dateParams.to) ?? defaultDateRange?.to,
-    };
-  }, [dateParams, defaultDateRange]);
+    if (dateRange === undefined) {
+      setInternalDate(newDateRange);
+    }
+  };
 
   return (
     <div className="grid gap-2">
@@ -131,12 +136,7 @@ export function DateRangePicker({
             mode="range"
             defaultMonth={date?.from}
             selected={date}
-            onSelect={(newDateRange) => {
-              void setDateParams({
-                from: newDateRange?.from?.toISOString() ?? "",
-                to: newDateRange?.to?.toISOString() ?? "",
-              });
-            }}
+            onSelect={handleDateChange}
             numberOfMonths={2}
           />
         </PopoverContent>
